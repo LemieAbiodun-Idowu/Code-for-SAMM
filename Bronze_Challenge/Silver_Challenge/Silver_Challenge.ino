@@ -1,5 +1,6 @@
 #include <NewPing.h>    //used for US Sensor
 #include <WiFiS3.h>     //Library for wifi
+#include <PID_v1.h>
 
 char ssid[] = "Y11 SAMM"; 
 char pass[] = "12345678"; 
@@ -21,6 +22,13 @@ volatile unsigned long previous_time_B = 0;
 const int Pulse_pre_rev = 4;
 //wheel circumference
 const float Circumference = 6.2*pi/100.0; // divided by 100 for metres conversion .0 is used for float division
+
+//PID Implementation for smooth turns - Needs Fine tuning
+double Input, Setpoint, Output;
+//kpp =35, ki = 0.026, kd = 2.1
+double Kp = 35, Ki = 0.026, Kd = 2.1;
+
+PID MBS(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
@@ -53,6 +61,8 @@ int REYE_current_state;
 //unsigned long starting;
 //unsigned long ending;     debugging stuff
 int distance_maxxing = 50;  //maximum distance at which the us sensor detects objects
+int IncrSpeed = speed + Output;
+int DecrSpeed;
 
 //NewPing library helps remove unnecessary delays for US Sensor
 NewPing UltraSonic(US_TRIG, US_ECHO, distance_maxxing);
@@ -95,6 +105,11 @@ void setup() {
   //RISING means the function is run when the encoder pins (which are interrupted) go from LOW to HIGH
   attachInterrupt(digitalPinToInterrupt(ENC_A), time_monitor_A, RISING);
   attachInterrupt(digitalPinToInterrupt(ENC_B), time_monitor_B, RISING);
+  Input = digitalRead(LEYE) - digitalRead(REYE);  //PID input is the state of the sensors
+  Setpoint = 0; //setpoint is the desired error
+
+  MBS.SetMode(AUTOMATIC);
+  MBS.SetSampleTime(10);  //ensures PID is computed quickly
 }
 
 void loop() {
@@ -133,22 +148,22 @@ void moveForward(){
   digitalWrite(IN3, LOW);
 }
 
-void turnLeft(){
+void turnLeft(int speedrise, int speedfall){
   //Serial.println("turning left");
-  analogWrite(ENA, 0);  //one wheel turns off when turning
+  analogWrite(ENA, speedfall);  //one wheel turns off when turning
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
-  analogWrite(ENB, speed+30);
+  analogWrite(ENB, speedrise);
   digitalWrite(IN4, HIGH);
   digitalWrite(IN3, LOW); 
 }
 
-void turnRight(){
+void turnRight(int speedrise, int speedfall){
   //Serial.println("turning right");
-  analogWrite(ENB, 0);
+  analogWrite(ENB, speedfall);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  analogWrite(ENA, speed+30);
+  analogWrite(ENA, speedrise);
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
 }
@@ -241,11 +256,19 @@ void ActivateBuggy(){
   LEYE_current_state = digitalRead(LEYE);
   REYE_current_state = digitalRead(REYE); //re-read the ir sensor state each loop
 
+  Input = LEYE_current_state - REYE_current_state;  //re-update the Input for every loop because the IR sensor values change
+
+  MBS.Compute();
+  IncrSpeed = speed + Output;
+  DecrSpeed = -1*abs(IncrSpeed);
+
   obst_distance = UltraSonic.ping_cm(); //current distance in cm from US Sensor
   // if(obst_distance > 0 ){
   //   Serial.print("Distance: ");
   //   Serial.println(obst_distance); 
   //  }
+  IncrSpeed = constrain(IncrSpeed, 0, 255); //ALlows speeds to remain within a certain boundary
+
 
   obstacle_detection(obst_distance);
   if(obstacle_detected){
@@ -255,10 +278,10 @@ void ActivateBuggy(){
     moveForward();
   }
   else if(!LEYE_current_state && REYE_current_state){ //!LEYE_current_state basically means if LEFT IR Sensor is off
-    turnLeft();
+    turnLeft(IncrSpeed, DecrSpeed);
   }
   else if(!REYE_current_state && LEYE_current_state){
-    turnRight();
+    turnRight(IncrSpeed, DecrSpeed);
   }
   else if (!LEYE_current_state && !REYE_current_state){
     stop();  
