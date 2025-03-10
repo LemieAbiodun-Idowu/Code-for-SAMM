@@ -25,7 +25,7 @@ const float Circumference = 6.2*pi/100.0; // divided by 100 for metres conversio
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-const int speed = 120;
+const int speed = 100;
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
@@ -138,7 +138,7 @@ void turnLeft(){
   analogWrite(ENA, 0);  //one wheel turns off when turning
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
-  analogWrite(ENB, speed+35);
+  analogWrite(ENB, speed+30);
   digitalWrite(IN4, HIGH);
   digitalWrite(IN3, LOW); 
 }
@@ -148,7 +148,7 @@ void turnRight(){
   analogWrite(ENB, 0);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  analogWrite(ENA, speed+35);
+  analogWrite(ENA, speed+30);
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
 }
@@ -165,7 +165,7 @@ void stop(){
 
 //isr functions
 void time_monitor_A(){
-  unsigned long current_time = micros();
+  unsigned long current_time = micros();    //TIME FROM INITIALISATION
   if(previous_time_A > 0){
     Time_ENC_A = current_time - previous_time_A;
   }
@@ -209,12 +209,12 @@ void Calc_avg_DST() {
 
 void obstacle_detection(float distance){
   if(distance > 0){ //ignore if the sensor says 0 or if it somehow says < 0
-    if(distance < 15 && !obstacle_detected){ //if an obstacle is close and it hasnt reported an obstacle yet
-      Serial.println("Holy Crap I'm about to hit something");
-      client.print("Bout to hit something\n");
+    if(distance < 15){ //if an obstacle is close and it hasnt reported an obstacle yet
       obstacle_detected = true; //now it knows the message has been sent that the obstacle has been detected
+      Serial.println("Holy Crap I'm about to hit something");
+      client.print("About to hit something\n");
     }
-    else if(distance > 15 && obstacle_detected){
+    else if(distance > 15){
       obstacle_detected = false;  //obstacle is now no longer there
       client.print("obstacle_cleared\n"); //client.print sends stuff to the client, which is processing
     }

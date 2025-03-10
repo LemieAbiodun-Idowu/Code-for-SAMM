@@ -53,8 +53,8 @@ void draw() {
   while (myClient.available() > 0) {  //Remember .available means there is data waiting to be read
     String data = myClient.readStringUntil('\n');  // Read incoming data
      if(data != null){
-      data = data.trim();    //Removes whitespaces
-      if(data.equals("Bout to hit something")){
+      data = data.trim();    //Removes unnecessary whitespaces
+      if(data.equals("About to hit something")){
         warning = "OBSTACLE!!!";
       }
       else if(data.equals("obstacle_cleared")){
@@ -78,7 +78,6 @@ void draw() {
   text("Speed: " + speed + "m/s", 1, 600);
   fill(255);  //changes colour of the text to white
   text("Distance: " + distance + "m", 550, 600);
-  
   if (!warning.isEmpty()) {    //if there is a warning
   if(warning.equals("OBSTACLE!!!")) {
         fill(255, 0, 0);  // Red for obstacle warning
@@ -94,7 +93,6 @@ void draw() {
 //Event handlers
 void GObuttonClicked() {
   myClient.write("Proceed lil bro\n");
-
 }
 
 void STOPbuttonClicked() {
