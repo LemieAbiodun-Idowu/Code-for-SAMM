@@ -30,6 +30,18 @@ double Kp = 35, Ki = 0.026, Kd = 2.1;
 
 PID MBS(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
+//PID Implementation for Mode 1
+double Input1, Setpoint1, Output1;
+double Kp1 = 0.0, Ki1 = 0.0, Kd1 = 0.0;
+
+PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
+
+//PID Implementation for Mode 2
+double Input2, Setpoint2, Output2;
+double Kp2 = 0.0, Ki2 = 0.0, Kd2 = 0.0;
+
+PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, DIRECT);
+
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
@@ -62,7 +74,7 @@ int REYE_current_state;
 //unsigned long ending;     debugging stuff
 int distance_maxxing = 50;  //maximum distance at which the us sensor detects objects
 int IncrSpeed = speed + Output;
-int DecrSpeed;
+//int IncrSpeedL = speed + Output;
 
 //NewPing library helps remove unnecessary delays for US Sensor
 NewPing UltraSonic(US_TRIG, US_ECHO, distance_maxxing);
@@ -116,7 +128,7 @@ void loop() {
   //starting = micros();
   client = server.available();
   if (client.connected()){  //used instead of (client) because this checks for an inactive connection
-    Serial.println("Client is still Online");
+    //Serial.println("Client is still Online");
     if(client.available()) {  //if there is data to be read
       String RequestFromClient = client.readStringUntil('\n');  // Read client request
       if (RequestFromClient == "Proceed lil bro")
@@ -148,22 +160,22 @@ void moveForward(){
   digitalWrite(IN3, LOW);
 }
 
-void turnLeft(int speedrise, int speedfall){
+void turnLeft(int speedchange){
   //Serial.println("turning left");
-  analogWrite(ENA, speedfall);  //one wheel turns off when turning
+  analogWrite(ENA, 0);  //one wheel turns off when turning
   digitalWrite(IN2, LOW);
-  digitalWrite(IN1, HIGH);
-  analogWrite(ENB, speedrise);
+  digitalWrite(IN1, LOW);
+  analogWrite(ENB, speedchange);
   digitalWrite(IN4, HIGH);
   digitalWrite(IN3, LOW); 
 }
 
-void turnRight(int speedrise, int speedfall){
+void turnRight(int speedchange){
   //Serial.println("turning right");
-  analogWrite(ENB, speedfall);
+  analogWrite(ENB, 0);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  analogWrite(ENA, speedrise);
+  analogWrite(ENA, speedchange);
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
 }
@@ -256,11 +268,11 @@ void ActivateBuggy(){
   LEYE_current_state = digitalRead(LEYE);
   REYE_current_state = digitalRead(REYE); //re-read the ir sensor state each loop
 
-  Input = LEYE_current_state - REYE_current_state;  //re-update the Input for every loop because the IR sensor values change
+  Input = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
 
   MBS.Compute();
   IncrSpeed = speed + Output;
-  DecrSpeed = -1*abs(IncrSpeed);
+
 
   obst_distance = UltraSonic.ping_cm(); //current distance in cm from US Sensor
   // if(obst_distance > 0 ){
@@ -268,7 +280,7 @@ void ActivateBuggy(){
   //   Serial.println(obst_distance); 
   //  }
   IncrSpeed = constrain(IncrSpeed, 0, 255); //ALlows speeds to remain within a certain boundary
-
+  //IncrSpeedR = constrain(IncrSpeedR, 0, 255); //ALlows speeds to remain within a certain boundary
 
   obstacle_detection(obst_distance);
   if(obstacle_detected){
@@ -278,10 +290,12 @@ void ActivateBuggy(){
     moveForward();
   }
   else if(!LEYE_current_state && REYE_current_state){ //!LEYE_current_state basically means if LEFT IR Sensor is off
-    turnLeft(IncrSpeed, DecrSpeed);
+    turnLeft(IncrSpeed);
+    Serial.println(IncrSpeed);
   }
   else if(!REYE_current_state && LEYE_current_state){
-    turnRight(IncrSpeed, DecrSpeed);
+    turnRight(IncrSpeed);
+    Serial.println(IncrSpeed);
   }
   else if (!LEYE_current_state && !REYE_current_state){
     stop();  
