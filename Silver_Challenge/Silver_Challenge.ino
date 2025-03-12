@@ -25,8 +25,8 @@ const float Circumference = 6.2*pi/100.0; // divided by 100 for metres conversio
 
 //PID Implementation for smooth turns - Needs Fine tuning
 double Input, Setpoint, Output;
-//kpp =35, ki = 0.026, kd = 2.1
-double Kp = 25, Ki = 0.026, Kd = 5;
+//double Kp = 35, Ki =1, Kd = 10;
+double Kp = 25, Ki = 0.5, Kd = 12;
 
 PID MBS(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
