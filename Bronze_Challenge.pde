@@ -45,6 +45,7 @@ void setup() {
      .setSize(200, 80)
      .setColorBackground(color(255, 0, 0))  //Set color to red
      .setColorActive(color(255, 255, 255))
+     .setColorForeground(color(255))   
      .setFont(buttonFont)
      .onClick(new CallbackListener() {
        public void controlEvent(CallbackEvent theEvent) {
