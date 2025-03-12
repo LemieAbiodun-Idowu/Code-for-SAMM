@@ -38,8 +38,9 @@ PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
 
 //PID Implementation for Mode 2
 double Input2, Setpoint2, Output2;
-double Kp2 = 0.0, Ki2 = 0.0, Kd2 = 0.0;
-
+double Kp2 = 2.0, Ki2 = 0.5, Kd2 = 1.0;
+Input2 = UltraSonic.ping_cm();
+Setpoint2 = 15;
 PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, DIRECT);
 
 //const values are NEVER changed
@@ -290,9 +291,11 @@ void ActivateBuggy(){
   //IncrSpeedR = constrain(IncrSpeedR, 0, 255); //ALlows speeds to remain within a certain boundary
 
   obstacle_detection(obst_distance);
-  if(obstacle_detected){
-    stop();
-  }
+  if (obst_distance < 15){
+ stop();}
+ else if (obst_distance > 15 && obst_distance < 50){
+ adjustSpeed();
+ else {
   else if(LEYE_current_state && REYE_current_state){ 
     moveForward();
   }
@@ -310,3 +313,9 @@ void ActivateBuggy(){
   //ending = micros();
   //Serial.println("loop " + String(ending - starting));
 }
+
+void adjustSpeed(){
+  int adjustedSpeed = constrain(speed + Output2, 0, 255); // this line adjusts the speed depending on distance 
+ if (error >0){
+  moveForward(adjustedSpeed);
+ }}
