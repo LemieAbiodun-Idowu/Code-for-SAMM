@@ -32,7 +32,7 @@ void setup() {
      .setPosition(300,450)
      .setSize(200, 80)
      .setColorBackground(color(0, 255, 0))  // Set color to green
-     .setColorActive(color(255, 255, 255))  
+     .setColorActive(color(200, 255, 200))  
      .setFont(buttonFont)  // Set the button label font
      .onClick(new CallbackListener() {  //use event handlers for when buttons are pressed
        public void controlEvent(CallbackEvent theEvent) {
