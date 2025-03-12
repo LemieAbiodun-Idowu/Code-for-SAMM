@@ -39,8 +39,7 @@ PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
 //PID Implementation for Mode 2
 double Input2, Setpoint2, Output2;
 double Kp2 = 2.0, Ki2 = 0.5, Kd2 = 1.0;
-Input2 = UltraSonic.ping_cm();
-Setpoint2 = 15;
+
 PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, DIRECT);
 
 //const values are NEVER changed
@@ -272,6 +271,17 @@ void Halt(){
   Time_ENC_B = 0;
 }
 
+void adjustSpeed(){
+  Input2 = UltraSonic.ping_cm();
+  Setpoint2 = 15;
+  Mode2.Compute();
+  double error = Setpoint2-Input2;
+
+  int adjustedSpeed = constrain(speed + Output2, 0, 255); // this line adjusts the speed depending on distance 
+  if (error > 0){
+ moveForward(adjustedSpeed);}
+ }
+
 void ActivateBuggy(){
   LEYE_current_state = digitalRead(LEYE);
   REYE_current_state = digitalRead(REYE); //re-read the ir sensor state each loop
@@ -293,10 +303,11 @@ void ActivateBuggy(){
   obstacle_detection(obst_distance);
   if (obst_distance < 15){
  stop();}
- else if (obst_distance > 15 && obst_distance < 50){
- adjustSpeed();
- else {
-  else if(LEYE_current_state && REYE_current_state){ 
+ else if (obst_distance >= 15 && obst_distance <= 50){
+ Mode2.compute();
+ adjustSpeed(); }
+ 
+ else if(LEYE_current_state && REYE_current_state){ 
     moveForward();
   }
   else if(!LEYE_current_state && REYE_current_state){ //!LEYE_current_state basically means if LEFT IR Sensor is off
@@ -313,9 +324,3 @@ void ActivateBuggy(){
   //ending = micros();
   //Serial.println("loop " + String(ending - starting));
 }
-
-void adjustSpeed(){
-  int adjustedSpeed = constrain(speed + Output2, 0, 255); // this line adjusts the speed depending on distance 
- if (error >0){
-  moveForward(adjustedSpeed);
- }}
