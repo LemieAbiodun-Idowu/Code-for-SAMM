@@ -14,6 +14,18 @@ void setup() {
   myClient = new Client(this, "192.168.4.1", 5200);  //,atches 5200 from arduino code
   cp5 = new ControlP5(this);
   PFont buttonFont = createFont("Arial", 38);  // Create a font with size 38
+  // add a vertical slider
+  cp5.addSlider("BuggySpeed")
+     .setPosition(250, 305)
+     .setSize(400, 75)
+     .setRange(0, 255)
+     .setValue(0)
+     .onChange(new CallbackListener(){
+       public void controlEvent(CallbackEvent theEvent){
+         SliderValueChanged(theEvent.getController().getValue());
+       }
+     });
+  
   cp5.addButton("GOButton")  //go button
      .setLabel("GO")
      //.getCaptionLabel().setSize(420)
@@ -97,4 +109,8 @@ void GObuttonClicked() {
 
 void STOPbuttonClicked() {
   myClient.write("Halt lil bro\n");
+}
+
+void SliderValueChanged(float current_speed){
+  myClient.write("Speed:" + Float.toString(current_speed) + "\n");
 }

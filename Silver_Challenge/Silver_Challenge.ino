@@ -26,7 +26,7 @@ const float Circumference = 6.2*pi/100.0; // divided by 100 for metres conversio
 //PID Implementation for smooth turns - Needs Fine tuning
 double Input, Setpoint, Output;
 //kpp =35, ki = 0.026, kd = 2.1
-double Kp = 35, Ki = 0.026, Kd = 2.1;
+double Kp = 25, Ki = 0.026, Kd = 5;
 
 PID MBS(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
@@ -45,11 +45,12 @@ PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, DIRECT);
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-const int speed = 100;
+int speed = 0;
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
 bool obstacle_detected = false;
+bool info_sent = false;
 bool BuggyActive = false;
 
 //Motor A pins
@@ -131,19 +132,23 @@ void loop() {
     //Serial.println("Client is still Online");
     if(client.available()) {  //if there is data to be read
       String RequestFromClient = client.readStringUntil('\n');  // Read client request
-      if (RequestFromClient == "Proceed lil bro")
+      if (RequestFromClient.substring(0, 6) == "Speed:"){
+        speed = RequestFromClient.substring(6).toInt();
+        //Serial.println(RequestFromClient);
+      }
+      else if (RequestFromClient == "Proceed lil bro")
         Proceed();
       else if (RequestFromClient == "Halt lil bro") 
         Halt();
       else if (RequestFromClient == "Update lil bro"){  //this is mainly used to just ensure new speed and distance values are sent
       }
+      }
     }
  //   Serial.println("AVG Speed: " + String(avg_speed) + "," + "AVG Distance: " + String(avg_distance_travelled) + "\n");
-  }
   Calc_avg_DST();
   if (client.connected()){
     client.print(String(avg_speed, 2) + "," + String(avg_distance_travelled, 2) + "\n");
-}
+  }
   if(BuggyActive){
     ActivateBuggy();  //this runs the ir sensor and us sensor stuff
   }
@@ -238,8 +243,9 @@ void obstacle_detection(float distance){
   if(distance > 0){ //ignore if the sensor says 0 or if it somehow says < 0
     if(distance < 15){ //if an obstacle is close and it hasnt reported an obstacle yet
       obstacle_detected = true; //now it knows the message has been sent that the obstacle has been detected
-      Serial.println("Holy Crap I'm about to hit something");
+      //Serial.println("Holy Crap I'm about to hit something");
       client.print("About to hit something\n");
+      info_sent = 1;
     }
     else if(distance > 15){
       obstacle_detected = false;  //obstacle is now no longer there
@@ -248,7 +254,8 @@ void obstacle_detection(float distance){
   }
   else {
     obstacle_detected = false;
-    client.print("obstacle_cleared\n");
+    if (info_sent)
+      client.print("obstacle_cleared\n");
   }
 }
 
