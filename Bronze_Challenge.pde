@@ -6,8 +6,7 @@ String distance = "0";
 String speed = "0";
 String warning = "";
 ControlP5 cp5;
-long prevUpdate = 0;
-int mode = 0;
+long prevUpdate = 0;  
 
 void setup() {
   size(900, 900);
@@ -16,26 +15,7 @@ void setup() {
   cp5 = new ControlP5(this);
   PFont buttonFont = createFont("Arial", 38);  // Create a font with size 38
   // add a vertical slider
-  cp5.addButton("Mode")  //go button
-      if (mode == 1){
-      .setLabel("MODE 1");
-      }
-      else if (mode == 2){
-      .setLabel("MODE 2");
-      .setColorBackground(color(240, 12, 229))  // Set color to pink
-      .setColorActive(color(0, 0, 255))  
-      }
-      else .setLabel("No Mode)
-     //.getCaptionLabel().setSize(420)
-     .setPosition(250, 700)
-     .setSize(200, 80)
-     .setFont(buttonFont)  // Set the button label font
-     .onClick(new CallbackListener() { 
-       public void controlEvent(CallbackEvent theEvent) {
-         ModebuttonClicked();
-       }
-     });
-  cp5.addSlider("BuggySpeed")  //Buggy Speed Slider
+  cp5.addSlider("BuggySpeed")
      .setPosition(250, 305)
      .setSize(400, 75)
      .setRange(0, 255)
