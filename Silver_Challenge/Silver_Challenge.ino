@@ -302,12 +302,13 @@ void ActivateBuggy(){
 
   obstacle_detection(obst_distance);
   if (obst_distance < 15){
- stop();}
+ stop();} //stop if too close 
  else if (obst_distance >= 15 && obst_distance <= 50){
  Mode2.compute();
  adjustSpeed(); }
- 
- else if(LEYE_current_state && REYE_current_state){ 
+
+ else if (obst_distance > 50){
+   if(LEYE_current_state && REYE_current_state){ 
     moveForward();
   }
   else if(!LEYE_current_state && REYE_current_state){ //!LEYE_current_state basically means if LEFT IR Sensor is off
@@ -323,4 +324,4 @@ void ActivateBuggy(){
   }
   //ending = micros();
   //Serial.println("loop " + String(ending - starting));
-}
+}}
