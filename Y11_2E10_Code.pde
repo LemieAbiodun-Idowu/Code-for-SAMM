@@ -6,7 +6,8 @@ String distance = "0";
 String speed = "0";
 String warning = "";
 ControlP5 cp5;
-long prevUpdate = 0;  
+long prevUpdate = 0;
+int mode = 0;
 
 void setup() {
   size(900, 900);
@@ -14,6 +15,21 @@ void setup() {
   myClient = new Client(this, "192.168.4.1", 5200);  //,atches 5200 from arduino code
   cp5 = new ControlP5(this);
   PFont buttonFont = createFont("Arial", 38);  // Create a font with size 38
+
+  cp5.addButton("Current mode")  //go button
+     .setLabel("No Active Mode")
+     //.getCaptionLabel().setSize(420)
+     .setPosition(270, 700)
+     .setSize(400, 80)
+     .setColorBackground(color(227, 41, 215))
+     .setColorActive(color(240, 104, 231))  
+     .setFont(buttonFont)  // Set the button label font
+     .onClick(new CallbackListener() {  //use event handlers for when buttons are pressed
+       public void controlEvent(CallbackEvent theEvent) {
+         ModebuttonClicked();
+       }
+     });
+     
   // add a vertical slider
   cp5.addSlider("BuggySpeed")
      .setPosition(250, 305)
@@ -114,4 +130,25 @@ void STOPbuttonClicked() {
 
 void SliderValueChanged(float current_speed){
   myClient.write("Speed:" + Float.toString(current_speed) + "\n");
+}
+
+void ModebuttonClicked(){
+  mode = mode + 1;
+  if(mode > 2){
+    mode = 0;
+  }
+  switch(mode){
+    case 0:
+      cp5.getController("Current mode").setLabel("No Active Mode");
+      break;
+    
+    case 1:
+      cp5.getController("Current mode").setLabel("Mode 1");
+      break;
+    
+    case 2:
+      cp5.getController("Current mode").setLabel("Mode 2");
+      break;
+     }
+  myClient.write("Mode lil bro:" + Integer.toString(mode) + "\n");
 }

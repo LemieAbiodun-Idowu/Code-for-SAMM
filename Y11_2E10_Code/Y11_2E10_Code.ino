@@ -45,13 +45,14 @@ PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, DIRECT);
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-int speed = 0;
+int speed = 110;
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
 bool obstacle_detected = false;
 bool info_sent = false;
 bool BuggyActive = false;
+int adjustedSpeed;
 
 //Motor A pins
 const int ENA = 5;    //EN = enable pins for the motor
@@ -71,10 +72,11 @@ const int ENC_B = 3;
 int LEYE_current_state;
 int REYE_current_state;
 
+int mode = 0;
 //unsigned long starting;
 //unsigned long ending;     debugging stuff
 int distance_maxxing = 50;  //maximum distance at which the us sensor detects objects
-int IncrSpeed = speed + Output;
+int IncrSpeed = speed + Output_Turn;
 //int IncrSpeedL = speed + Output;
 
 //NewPing library helps remove unnecessary delays for US Sensor
@@ -118,12 +120,14 @@ void setup() {
   //RISING means the function is run when the encoder pins (which are interrupted) go from LOW to HIGH
   attachInterrupt(digitalPinToInterrupt(ENC_A), time_monitor_A, RISING);
   attachInterrupt(digitalPinToInterrupt(ENC_B), time_monitor_B, RISING);
-  Input_Turn = digitalRead(LEYE) - digitalRead(REYE);  //PID input is the state of the sensors
-  Setpoint_Turn = 0; //setpoint is the desired error
-
+  Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
+  Input2 = UltraSonic.ping_cm();
+  Setpoint_Turn = 0;
+  Setpoint2 = 15;
   MBS.SetMode(AUTOMATIC);
   Mode2.SetMode(AUTOMATIC);
-  MBS.SetSampleTime(10);  //ensures PID is computed quickly
+  // MBS.SetSampleTime(10);  //ensures PID is computed quickly
+  // Mode2.SetSampleTime(10);
 }
 
 void loop() {
@@ -133,9 +137,14 @@ void loop() {
     //Serial.println("Client is still Online");
     if(client.available()) {  //if there is data to be read
       String RequestFromClient = client.readStringUntil('\n');  // Read client request
-      if (RequestFromClient.substring(0, 6) == "Speed:"){
-        speed = RequestFromClient.substring(6).toInt();
+      if(RequestFromClient.substring(0, 13) == "Mode lil bro:"){
+        mode = RequestFromClient.substring(13).toInt();
+      }
+      if (mode == 1){
+        if (RequestFromClient.substring(0, 6) == "Speed:"){
+          speed = RequestFromClient.substring(6).toInt();
         //Serial.println(RequestFromClient);
+        }
       }
       else if (RequestFromClient == "Proceed lil bro")
         Proceed();
@@ -272,16 +281,26 @@ void Halt(){
   Time_ENC_B = 0;
 }
 
-void adjustSpeed(){
+void obstacle_following(){
   Input2 = UltraSonic.ping_cm();
   Setpoint2 = 15;
   Mode2.Compute();
-  double error = Setpoint2-Input2;
+  //double error = Setpoint2-Input2;
+  adjustedSpeed = speed + Output2;
+  adjustedSpeed = constrain(adjustedSpeed, 0, 255); // this line adjusts the speed depending on distance 
+  // if (error > 0){
+  //   moveForward(adjustedSpeed);
+  // }
+}
 
-  int adjustedSpeed = constrain(speed + Output2, 0, 255); // this line adjusts the speed depending on distance 
-  if (error > 0){
-    moveForward(adjustedSpeed);
-  }
+void Mode2_Movement(){
+  analogWrite(ENA, adjustedSpeed);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN1, HIGH);
+  analogWrite(ENB, adjustedSpeed);
+  digitalWrite(IN4, HIGH);
+  digitalWrite(IN3, LOW);
+  Serial.println(adjustedSpeed);
 }
 
 void ActivateBuggy(){
@@ -291,14 +310,17 @@ void ActivateBuggy(){
   Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
 
   MBS.Compute();
-  IncrSpeed = speed + Output;
-
 
   obst_distance = UltraSonic.ping_cm(); //current distance in cm from US Sensor
   // if(obst_distance > 0 ){
   //   Serial.print("Distance: ");
   //   Serial.println(obst_distance); 
   //  }
+  if(mode == 2 && obst_distance > 0 && obst_distance < 50){
+    obstacle_following();
+  }
+
+  IncrSpeed = speed + Output_Turn;
   IncrSpeed = constrain(IncrSpeed, 0, 255); //ALlows speeds to remain within a certain boundary
   //IncrSpeedR = constrain(IncrSpeedR, 0, 255); //ALlows speeds to remain within a certain boundary
 
@@ -310,9 +332,11 @@ void ActivateBuggy(){
  //Mode2.compute();
  //adjustSpeed(); }
 
- //else if (obst_distance > 50){
-  else if(LEYE_current_state && REYE_current_state){ 
-    moveForward();
+  else if(LEYE_current_state && REYE_current_state){
+    if(mode == 2 && obst_distance > 0 && obst_distance < 50){
+      Mode2_Movement();
+    }
+    else moveForward();
   }
   else if(!LEYE_current_state && REYE_current_state){ //!LEYE_current_state basically means if LEFT IR Sensor is off
     turnLeft(IncrSpeed);
@@ -327,4 +351,5 @@ void ActivateBuggy(){
   }
   //ending = micros();
   //Serial.println("loop " + String(ending - starting));
+  
 }
