@@ -24,17 +24,17 @@ const int Pulse_pre_rev = 4;
 const float Circumference = 6.2*pi/100.0; // divided by 100 for metres conversion .0 is used for float division
 
 //PID Implementation for smooth turns - Needs Fine tuning
-double Input, Setpoint, Output;
+double Input_Turn, Setpoint_Turn, Output_Turn;
 //double Kp = 35, Ki =1, Kd = 10;
-double Kp = 25, Ki = 0.5, Kd = 12;
+double Kp_Turn = 25, Ki_Turn = 0.5, Kd_Turn = 12;
 
-PID MBS(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+PID MBS(&Input_Turn, &Output_Turn, &Setpoint_Turn, Kp_Turn, Ki_Turn, Kd_Turn, DIRECT);
 
 //PID Implementation for Mode 1
-double Input1, Setpoint1, Output1;
-double Kp1 = 0.0, Ki1 = 0.0, Kd1 = 0.0;
+//double Input1, Setpoint1, Output1;
+//double Kp1 = 0.0, Ki1 = 0.0, Kd1 = 0.0;
 
-PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
+//PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
 
 //PID Implementation for Mode 2
 double Input2, Setpoint2, Output2;
@@ -118,10 +118,11 @@ void setup() {
   //RISING means the function is run when the encoder pins (which are interrupted) go from LOW to HIGH
   attachInterrupt(digitalPinToInterrupt(ENC_A), time_monitor_A, RISING);
   attachInterrupt(digitalPinToInterrupt(ENC_B), time_monitor_B, RISING);
-  Input = digitalRead(LEYE) - digitalRead(REYE);  //PID input is the state of the sensors
-  Setpoint = 0; //setpoint is the desired error
+  Input_Turn = digitalRead(LEYE) - digitalRead(REYE);  //PID input is the state of the sensors
+  Setpoint_Turn = 0; //setpoint is the desired error
 
   MBS.SetMode(AUTOMATIC);
+  Mode2.SetMode(AUTOMATIC);
   MBS.SetSampleTime(10);  //ensures PID is computed quickly
 }
 
@@ -203,7 +204,6 @@ void time_monitor_A(){
   }
   previous_time_A = current_time;
   pulseCount_ENC_A++;
- 
 }
 
 void time_monitor_B(){
@@ -245,11 +245,12 @@ void obstacle_detection(float distance){
       obstacle_detected = true; //now it knows the message has been sent that the obstacle has been detected
       //Serial.println("Holy Crap I'm about to hit something");
       client.print("About to hit something\n");
-      info_sent = 1;
+      info_sent = true;
     }
     else if(distance > 15){
       obstacle_detected = false;  //obstacle is now no longer there
-      client.print("obstacle_cleared\n"); //client.print sends stuff to the client, which is processing
+      if (info_sent)
+        client.print("obstacle_cleared\n"); //client.print sends stuff to the client, which is processing
     }
   }
   else {
@@ -279,14 +280,15 @@ void adjustSpeed(){
 
   int adjustedSpeed = constrain(speed + Output2, 0, 255); // this line adjusts the speed depending on distance 
   if (error > 0){
- moveForward(adjustedSpeed);}
- }
+    moveForward(adjustedSpeed);
+  }
+}
 
 void ActivateBuggy(){
   LEYE_current_state = digitalRead(LEYE);
   REYE_current_state = digitalRead(REYE); //re-read the ir sensor state each loop
 
-  Input = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
+  Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
 
   MBS.Compute();
   IncrSpeed = speed + Output;
@@ -301,14 +303,15 @@ void ActivateBuggy(){
   //IncrSpeedR = constrain(IncrSpeedR, 0, 255); //ALlows speeds to remain within a certain boundary
 
   obstacle_detection(obst_distance);
-  if (obst_distance < 15){
- stop();} //stop if too close 
- else if (obst_distance >= 15 && obst_distance <= 50){
- Mode2.compute();
- adjustSpeed(); }
+  if (obstacle_detected){
+    stop(); //stop if too close
+  }  
+ //else if (obst_distance >= 15 && obst_distance <= 50){
+ //Mode2.compute();
+ //adjustSpeed(); }
 
- else if (obst_distance > 50){
-   if(LEYE_current_state && REYE_current_state){ 
+ //else if (obst_distance > 50){
+  else if(LEYE_current_state && REYE_current_state){ 
     moveForward();
   }
   else if(!LEYE_current_state && REYE_current_state){ //!LEYE_current_state basically means if LEFT IR Sensor is off
@@ -324,4 +327,4 @@ void ActivateBuggy(){
   }
   //ending = micros();
   //Serial.println("loop " + String(ending - starting));
-}}
+}
