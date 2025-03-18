@@ -32,7 +32,7 @@ PID MBS(&Input_Turn, &Output_Turn, &Setpoint_Turn, Kp_Turn, Ki_Turn, Kd_Turn, DI
 
 //PID Implementation for Mode 1
 double Input1, Setpoint1, Output1;
-double Kp1 = 0.5, Ki1 = 1, Kd1 = 0.0;
+double Kp1 = 0.5, Ki1 = 0.7, Kd1 = 0.0;
 
 PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
 
