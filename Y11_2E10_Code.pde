@@ -31,10 +31,10 @@ void setup() {
      });
      
   // add a vertical slider
-  cp5.addSlider("BuggySpeed")
+  cp5.addSlider("BuggySpeed in m/s")
      .setPosition(250, 305)
      .setSize(400, 75)
-     .setRange(0, 255)
+     .setRange(0, 0.74)
      .setValue(0)
      .onChange(new CallbackListener(){
        public void controlEvent(CallbackEvent theEvent){
@@ -60,8 +60,7 @@ void setup() {
      .setPosition(600, 450)
      .setSize(200, 80)
      .setColorBackground(color(255, 0, 0))  //Set color to red
-     .setColorActive(color(255, 255, 255))
-     .setColorForeground(color(255))   
+     .setColorActive(color(255, 255, 255)) 
      .setFont(buttonFont)
      .onClick(new CallbackListener() {
        public void controlEvent(CallbackEvent theEvent) {

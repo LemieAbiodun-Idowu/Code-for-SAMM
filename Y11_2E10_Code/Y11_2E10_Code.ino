@@ -26,33 +26,37 @@ const float Circumference = 6.2*pi/100.0; // divided by 100 for metres conversio
 //PID Implementation for smooth turns - Needs Fine tuning
 double Input_Turn, Setpoint_Turn, Output_Turn;
 //double Kp = 35, Ki =1, Kd = 10;
-double Kp_Turn = 25, Ki_Turn = 0.5, Kd_Turn = 12;
+double Kp_Turn = 25, Ki_Turn = 0.049, Kd_Turn = 0;
 
 PID MBS(&Input_Turn, &Output_Turn, &Setpoint_Turn, Kp_Turn, Ki_Turn, Kd_Turn, DIRECT);
 
 //PID Implementation for Mode 1
-//double Input1, Setpoint1, Output1;
-//double Kp1 = 0.0, Ki1 = 0.0, Kd1 = 0.0;
+double Input1, Setpoint1, Output1;
+double Kp1 = 0.5, Ki1 = 1, Kd1 = 0.0;
 
-//PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
+PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
 
 //PID Implementation for Mode 2
 double Input2, Setpoint2, Output2;
-double Kp2 = 2.0, Ki2 = 0.5, Kd2 = 1.0;
+double Kp2 = 10, Ki2 = 0.5, Kd2 = 0;
 
-PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, DIRECT);
+PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, REVERSE);
 
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-int speed = 110;
+int speed = 120;
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
 bool obstacle_detected = false;
 bool info_sent = false;
 bool BuggyActive = false;
-int adjustedSpeed;
+const double MIOH = 12750/37;
+int followingSpeed;
+float slider_speed = 0;
+
+const bool surface = true; // true = white line false = back line
 
 //Motor A pins
 const int ENA = 5;    //EN = enable pins for the motor
@@ -121,10 +125,13 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ENC_A), time_monitor_A, RISING);
   attachInterrupt(digitalPinToInterrupt(ENC_B), time_monitor_B, RISING);
   Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
+  Input1 = speed;
   Input2 = UltraSonic.ping_cm();
   Setpoint_Turn = 0;
+  Setpoint1 = slider_speed;
   Setpoint2 = 15;
   MBS.SetMode(AUTOMATIC);
+  Mode1.SetMode(AUTOMATIC);
   Mode2.SetMode(AUTOMATIC);
   // MBS.SetSampleTime(10);  //ensures PID is computed quickly
   // Mode2.SetSampleTime(10);
@@ -142,7 +149,7 @@ void loop() {
       }
       if (mode == 1){
         if (RequestFromClient.substring(0, 6) == "Speed:"){
-          speed = RequestFromClient.substring(6).toInt();
+          slider_speed = RequestFromClient.substring(6).toFloat();
         //Serial.println(RequestFromClient);
         }
       }
@@ -240,7 +247,7 @@ void Calc_avg_DST() {
   // Calculate time in seconds
   avg_time = (Time_ENC_A + Time_ENC_B)/2000000.0; // because Time_ENC_A and B are measured in mircoseconds
   if(avg_time > 0.0001) { // helps avoid division by very small numbers
-    avg_speed = Circumference/(Pulse_pre_rev*avg_time); //remember this is the speed for each pulse
+    avg_speed = Circumference/(Pulse_pre_rev * avg_time); //remember this is the speed for each pulse
   } else {
       avg_speed = 0;  //if time between pulses is just say speed is 0 at that point
   }
@@ -281,31 +288,47 @@ void Halt(){
   Time_ENC_B = 0;
 }
 
+void Slider_PID(){
+  Input1 = avg_speed;
+  Setpoint1 = slider_speed;
+  Mode1.Compute();
+  double slided_speed = Output1;
+  slided_speed = constrain(slided_speed, 0, 0.74);
+  Serial.println(slided_speed);
+  speed = slided_speed * MIOH;
+  speed = constrain(speed, 40, 255);
+}
+
 void obstacle_following(){
   Input2 = UltraSonic.ping_cm();
   Setpoint2 = 15;
   Mode2.Compute();
   //double error = Setpoint2-Input2;
-  adjustedSpeed = speed + Output2;
-  adjustedSpeed = constrain(adjustedSpeed, 0, 255); // this line adjusts the speed depending on distance 
-  // if (error > 0){
+  followingSpeed = Output2;
+  followingSpeed = constrain(followingSpeed, 40, 255); // this line adjusts the speed depending on distance 
+  // if (error > 0){hed
   //   moveForward(adjustedSpeed);
   // }
 }
 
 void Mode2_Movement(){
-  analogWrite(ENA, adjustedSpeed);
+  analogWrite(ENA, followingSpeed);
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
-  analogWrite(ENB, adjustedSpeed);
+  analogWrite(ENB, followingSpeed);
   digitalWrite(IN4, HIGH);
   digitalWrite(IN3, LOW);
-  Serial.println(adjustedSpeed);
+  Serial.println(followingSpeed);
 }
 
 void ActivateBuggy(){
   LEYE_current_state = digitalRead(LEYE);
   REYE_current_state = digitalRead(REYE); //re-read the ir sensor state each loop
+
+  // if (!surface) {
+  //   LEYE_current_state = !LEYE_current_state;
+  //   REYE_current_state = !REYE_current_state;
+  // }
 
   Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
 
@@ -316,6 +339,10 @@ void ActivateBuggy(){
   //   Serial.print("Distance: ");
   //   Serial.println(obst_distance); 
   //  }
+  if(mode == 1 && slider_speed > 0){
+    Slider_PID();
+  }
+
   if(mode == 2 && obst_distance > 0 && obst_distance < 50){
     obstacle_following();
   }
