@@ -8,6 +8,8 @@ String warning = "";
 ControlP5 cp5;
 long prevUpdate = 0;
 int mode = 0;
+float obst_distance;
+boolean following_obstacle = false;
 
 void setup() {
   size(900, 900);
@@ -88,6 +90,10 @@ void draw() {
       else if(data.equals("obstacle_cleared")){
         warning = "Cleared :D";
       }
+      else if(!data.contains(",")){
+        obst_distance = float(data);
+        following_obstacle = true;
+      }
       else{  //if the data sent is not warning about an obstacle it will be sending distance and speed
         String[] DST =  data.split(",");  // Split speed and distance
         if (DST.length == 2) {
@@ -116,6 +122,16 @@ void draw() {
     text(warning, 250, 150);
     textSize(50);  // Reset text size
   }
+  //if (warning.equals("Cleared :D")){
+  // fill(255, 255, 255);
+  // text("Not Following D:", 200, 850);
+  //}
+  if (following_obstacle){
+    fill(255, 255, 255);
+    text("Obstacle at " + obst_distance, 200, 850);
+    //following_obstacle = false;
+  }
+
 }
 
 //Event handlers

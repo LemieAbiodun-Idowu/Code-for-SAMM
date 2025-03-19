@@ -133,9 +133,9 @@ void setup() {
   MBS.SetMode(AUTOMATIC);
   Mode1.SetMode(AUTOMATIC);
   Mode2.SetMode(AUTOMATIC);
-  MBS.SetSampleTime(10);  //ensures PID is computed quickly
-  Mode1.SetSampleTime(10);
-  Mode2.SetSampleTime(10);
+  // MBS.SetSampleTime(10);  //ensures PID is computed quickly
+  // Mode1.SetSampleTime(10);
+  // Mode2.SetSampleTime(10);
 }
 
 void loop() {
@@ -153,7 +153,9 @@ void loop() {
           //   resetM1Integral();
           //   resetM2Integral();
           // }
-          if (mode == 2) 
+          if (mode == 1)
+            speed = 120; //for overcoming initial inertia
+          else if (mode == 2) 
           followingSpeed = 100; // Default following speed
       }
       if (mode == 1){
@@ -222,7 +224,6 @@ void stop(){
   resetTurnIntegral();
   resetM1Integral();
   //resetM2Integral();
-
 }
 
 //isr functions
@@ -317,7 +318,7 @@ void Slider_PID(){
   slided_speed = constrain(slided_speed, 0, 0.74);
   Serial.println(slided_speed);
   speed = slided_speed * MIOH;
-  speed = constrain(speed, 40, 255);
+  speed = constrain(speed, 0, 255);
   Serial.println("Target: " + String(slider_speed) + ", Actual: " + String(avg_speed) + ", Output: " + String(slided_speed) + ", Speed: " + String(speed));
 }
 
@@ -330,7 +331,15 @@ void obstacle_following(){
   Mode2.Compute();
   //double error = Setpoint2-Input2;
   followingSpeed = Output2;
-  followingSpeed = constrain(followingSpeed, 60, 220); // this line adjusts the speed depending on distance 
+  followingSpeed = constrain(followingSpeed, 60, 220); // this line adjusts the speed depending on distance
+  if(Input2 < 10) { //slow down or stop
+      followingSpeed = constrain(followingSpeed, 0, 80);
+    } else if(Input2 > 20) { // go faster
+      followingSpeed = constrain(followingSpeed, 120, 220);
+    } else { // About right distance
+      followingSpeed = constrain(followingSpeed, 60, 180);
+    }
+   
   // if (error > 0){hed
   //   moveForward(adjustedSpeed);
   // }
@@ -358,11 +367,11 @@ void resetM1Integral(){
   Mode1.SetMode(AUTOMATIC);
 }
 
-void resetM2Integral(){
-  Mode2.SetMode(MANUAL);
-  Output2 = 60;
-  Mode2.SetMode(AUTOMATIC);
-}
+// void resetM2Integral(){
+//   Mode2.SetMode(MANUAL);
+//   Output2 = 60;
+//   Mode2.SetMode(AUTOMATIC);
+// }
 
 void ActivateBuggy(){
   LEYE_current_state = digitalRead(LEYE);
@@ -410,6 +419,7 @@ void ActivateBuggy(){
 
   else if(LEYE_current_state && REYE_current_state){
     if(mode == 2 && obst_distance > 0 && obst_distance < 50){
+      client.print(String(obst_distance, 2) + "\n");
       Mode2_Movement();
     }
     else moveForward();
