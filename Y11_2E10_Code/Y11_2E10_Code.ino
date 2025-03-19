@@ -26,26 +26,26 @@ const float Circumference = 6.2*pi/100.0; // divided by 100 for metres conversio
 //PID Implementation for smooth turns - Needs Fine tuning
 double Input_Turn, Setpoint_Turn, Output_Turn;
 //double Kp = 35, Ki =1, Kd = 10;
-double Kp_Turn = 25, Ki_Turn = 0.049, Kd_Turn = 0;
+double Kp_Turn = 30, Ki_Turn = 0.5, Kd_Turn = 12;
 
 PID MBS(&Input_Turn, &Output_Turn, &Setpoint_Turn, Kp_Turn, Ki_Turn, Kd_Turn, DIRECT);
 
 //PID Implementation for Mode 1
 double Input1, Setpoint1, Output1;
-double Kp1 = 0.5, Ki1 = 0.7, Kd1 = 0.0;
+double Kp1 = 1, Ki1 = 0.5, Kd1 = 0.0;
 
 PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
 
 //PID Implementation for Mode 2
 double Input2, Setpoint2, Output2;
-double Kp2 = 10, Ki2 = 0.5, Kd2 = 0;
+double Kp2 = 6, Ki2 = 2.5, Kd2 = 0;
 
 PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, REVERSE);
 
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-int speed = 120;
+int speed = 130;
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
@@ -133,8 +133,9 @@ void setup() {
   MBS.SetMode(AUTOMATIC);
   Mode1.SetMode(AUTOMATIC);
   Mode2.SetMode(AUTOMATIC);
-  // MBS.SetSampleTime(10);  //ensures PID is computed quickly
-  // Mode2.SetSampleTime(10);
+  MBS.SetSampleTime(10);  //ensures PID is computed quickly
+  Mode1.SetSampleTime(10);
+  Mode2.SetSampleTime(10);
 }
 
 void loop() {
@@ -145,7 +146,15 @@ void loop() {
     if(client.available()) {  //if there is data to be read
       String RequestFromClient = client.readStringUntil('\n');  // Read client request
       if(RequestFromClient.substring(0, 13) == "Mode lil bro:"){
+        //int previousMode = mode;
         mode = RequestFromClient.substring(13).toInt();
+          // if(previousMode != mode) {
+          //   resetTurnIntegral();
+          //   resetM1Integral();
+          //   resetM2Integral();
+          // }
+          if (mode == 2) 
+          followingSpeed = 100; // Default following speed
       }
       if (mode == 1){
         if (RequestFromClient.substring(0, 6) == "Speed:"){
@@ -153,7 +162,7 @@ void loop() {
         //Serial.println(RequestFromClient);
         }
       }
-      else if (RequestFromClient == "Proceed lil bro")
+      if (RequestFromClient == "Proceed lil bro")
         Proceed();
       else if (RequestFromClient == "Halt lil bro") 
         Halt();
@@ -210,6 +219,10 @@ void stop(){
   analogWrite(ENB, 0);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, LOW);
+  resetTurnIntegral();
+  resetM1Integral();
+  //resetM2Integral();
+
 }
 
 //isr functions
@@ -246,10 +259,10 @@ void Calc_avg_DST() {
   
   // Calculate time in seconds
   avg_time = (Time_ENC_A + Time_ENC_B)/2000000.0; // because Time_ENC_A and B are measured in mircoseconds
-  if(avg_time > 0.0001) { // helps avoid division by very small numbers
+  if(avg_time > 0.0001 && BuggyActive) { // helps avoid division by very small numbers
     avg_speed = Circumference/(Pulse_pre_rev * avg_time); //remember this is the speed for each pulse
   } else {
-      avg_speed = 0;  //if time between pulses is just say speed is 0 at that point
+    avg_speed = 0;  //if time between pulses is just say speed is 0 at that point
   }
         
   
@@ -289,7 +302,15 @@ void Halt(){
 }
 
 void Slider_PID(){
+  //int prev_Input1 = Input1;
   Input1 = avg_speed;
+  // if(abs(prev_Input1 - Input1) > 0.05){
+  //   resetM1Integral();
+  // }
+  if(slider_speed > 0 && avg_speed < 0.05) {
+    //resetM1Integral();
+    speed = 120; // Initial speed to overcome inertia
+  }
   Setpoint1 = slider_speed;
   Mode1.Compute();
   double slided_speed = Output1;
@@ -297,15 +318,19 @@ void Slider_PID(){
   Serial.println(slided_speed);
   speed = slided_speed * MIOH;
   speed = constrain(speed, 40, 255);
+  Serial.println("Target: " + String(slider_speed) + ", Actual: " + String(avg_speed) + ", Output: " + String(slided_speed) + ", Speed: " + String(speed));
 }
 
 void obstacle_following(){
+  //int prev_Input2 = Input2;
   Input2 = UltraSonic.ping_cm();
-  Setpoint2 = 15;
+  // if(prev_Input2 != Input2){
+
+  // }
   Mode2.Compute();
   //double error = Setpoint2-Input2;
   followingSpeed = Output2;
-  followingSpeed = constrain(followingSpeed, 40, 255); // this line adjusts the speed depending on distance 
+  followingSpeed = constrain(followingSpeed, 60, 220); // this line adjusts the speed depending on distance 
   // if (error > 0){hed
   //   moveForward(adjustedSpeed);
   // }
@@ -321,6 +346,24 @@ void Mode2_Movement(){
   Serial.println(followingSpeed);
 }
 
+void resetTurnIntegral() {
+  MBS.SetMode(MANUAL);
+  Output_Turn = 0;
+  MBS.SetMode(AUTOMATIC);
+}
+
+void resetM1Integral(){
+  Mode1.SetMode(MANUAL);
+  Output1 = 0; // Constrain initial output
+  Mode1.SetMode(AUTOMATIC);
+}
+
+void resetM2Integral(){
+  Mode2.SetMode(MANUAL);
+  Output2 = 60;
+  Mode2.SetMode(AUTOMATIC);
+}
+
 void ActivateBuggy(){
   LEYE_current_state = digitalRead(LEYE);
   REYE_current_state = digitalRead(REYE); //re-read the ir sensor state each loop
@@ -329,9 +372,12 @@ void ActivateBuggy(){
   //   LEYE_current_state = !LEYE_current_state;
   //   REYE_current_state = !REYE_current_state;
   // }
-
+  int prev_input_turn = Input_Turn;
   Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
 
+  if(prev_input_turn != Input_Turn){
+    resetTurnIntegral();
+  }
   MBS.Compute();
 
   obst_distance = UltraSonic.ping_cm(); //current distance in cm from US Sensor
@@ -339,11 +385,11 @@ void ActivateBuggy(){
   //   Serial.print("Distance: ");
   //   Serial.println(obst_distance); 
   //  }
-  if(mode == 1 && slider_speed > 0){
+  if(mode == 1 && slider_speed > 0 && !(!LEYE_current_state && !REYE_current_state)){
     Slider_PID();
   }
 
-  if(mode == 2 && obst_distance > 0 && obst_distance < 50){
+  else if(mode == 2 && obst_distance > 0 && obst_distance <= 50){
     obstacle_following();
   }
 
@@ -354,6 +400,9 @@ void ActivateBuggy(){
   obstacle_detection(obst_distance);
   if (obstacle_detected){
     stop(); //stop if too close
+    if(mode == 1){
+      //resetM1Integral();
+    }
   }  
  //else if (obst_distance >= 15 && obst_distance <= 50){
  //Mode2.compute();
@@ -380,3 +429,4 @@ void ActivateBuggy(){
   //Serial.println("loop " + String(ending - starting));
   
 }
+
