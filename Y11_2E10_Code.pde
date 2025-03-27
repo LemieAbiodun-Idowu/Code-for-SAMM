@@ -16,7 +16,7 @@ void setup() {
   background(50);
   myClient = new Client(this, "192.168.4.1", 5200);  //,atches 5200 from arduino code
   cp5 = new ControlP5(this);
-  PFont buttonFont = createFont("Arial", 38);  // Create a font with size 38
+  PFont buttonFont = createFont("Arial Bold", 38);  // Create a font with size 38
 
   cp5.addButton("Current mode")  //go button
      .setLabel("No Active Mode")
@@ -47,7 +47,7 @@ void setup() {
   cp5.addButton("GOButton")  //go button
      .setLabel("GO")
      //.getCaptionLabel().setSize(420)
-     .setPosition(300,450)
+     .setPosition(160,100)
      .setSize(200, 80)
      .setColorBackground(color(0, 255, 0))  // Set color to green
      .setColorActive(color(200, 255, 200))  
@@ -59,7 +59,7 @@ void setup() {
      });
   cp5.addButton("STOPButton")  //stop button
      .setLabel("STOP")
-     .setPosition(600, 450)
+     .setPosition(500, 100)
      .setSize(200, 80)
      .setColorBackground(color(255, 0, 0))  //Set color to red
      .setColorActive(color(255, 255, 255)) 
@@ -73,6 +73,8 @@ void setup() {
 
 void draw() {
   background(50);
+  drawButtonBorder(160, 100, 200, 80, color(0, 255, 0), 50); // Border with green color and thickness 5px
+  drawButtonBorder(500, 100, 200, 80, color(255,0,0),50);
   textSize(50);
   if (millis() - prevUpdate > 100){    //Making sure values are updated regularly
     if(myClient.active()){
@@ -166,4 +168,10 @@ void ModebuttonClicked(){
       break;
      }
   myClient.write("Mode lil bro:" + Integer.toString(mode) + "\n");
+}
+void drawButtonBorder(float x, float y, float w, float h, color borderColor, float borderThickness) {
+  noFill(); // No fill for the button, just the border
+  stroke(borderColor);
+  strokeWeight(borderThickness);
+  rect(x, y, w, h, 20);  // Rounded rectangle with border
 }
