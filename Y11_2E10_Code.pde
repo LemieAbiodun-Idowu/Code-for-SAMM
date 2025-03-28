@@ -21,7 +21,7 @@ void setup() {
   cp5.addButton("Current mode")  //go button
      .setLabel("No Active Mode")
      //.getCaptionLabel().setSize(420)
-     .setPosition(270, 700)
+     .setPosition(250, 250)
      .setSize(400, 80)
      .setColorBackground(color(227, 41, 215))
      .setColorActive(color(240, 104, 231))  
@@ -34,7 +34,7 @@ void setup() {
      
   // add a vertical slider
   cp5.addSlider("BuggySpeed in m/s")
-     .setPosition(250, 305)
+     .setPosition(250, 400)
      .setSize(400, 75)
      .setRange(0, 0.74)
      .setValue(0)
@@ -47,7 +47,7 @@ void setup() {
   cp5.addButton("GOButton")  //go button
      .setLabel("GO")
      //.getCaptionLabel().setSize(420)
-     .setPosition(160,100)
+     .setPosition(150,100)
      .setSize(200, 80)
      .setColorBackground(color(0, 255, 0))  // Set color to green
      .setColorActive(color(200, 255, 200))  
@@ -59,7 +59,7 @@ void setup() {
      });
   cp5.addButton("STOPButton")  //stop button
      .setLabel("STOP")
-     .setPosition(500, 100)
+     .setPosition(550, 100)
      .setSize(200, 80)
      .setColorBackground(color(255, 0, 0))  //Set color to red
      .setColorActive(color(255, 255, 255)) 
@@ -75,6 +75,8 @@ void draw() {
   background(50);
   drawButtonBorder(160, 100, 200, 80, color(0, 255, 0), 50); // Border with green color and thickness 5px
   drawButtonBorder(500, 100, 200, 80, color(255,0,0),50);
+  drawButtonBorder(250, 250, 400, 80, color(227, 41, 215),50);
+
   textSize(50);
   if (millis() - prevUpdate > 100){    //Making sure values are updated regularly
     if(myClient.active()){
@@ -105,15 +107,16 @@ void draw() {
       }
   }
  }
+drawTable();
   float speedVal = float(speed); 
   if (speedVal > 0) {
     fill(0, 255, 0); // Green when moving
   } else {
     fill(255, 0, 0); // Red when stopped
   }
-  text("Speed: " + speed + "m/s", 1, 600);
-  fill(255);  //changes colour of the text to white
-  text("Distance: " + distance + "m", 550, 600);
+ // text("Speed: " + speed + "m/s", 1, 600);
+  //fill(255);  //changes colour of the text to white
+ // text("Distance: " + distance + "m", 550, 600);
   if (!warning.isEmpty()) {    //if there is a warning
   if(warning.equals("OBSTACLE!!!")) {
         fill(255, 0, 0);  // Red for obstacle warning
@@ -174,4 +177,56 @@ void drawButtonBorder(float x, float y, float w, float h, color borderColor, flo
   stroke(borderColor);
   strokeWeight(borderThickness);
   rect(x, y, w, h, 20);  // Rounded rectangle with border
+}
+void drawTable() {
+  float tableX = 100;
+  float tableY = 550;
+  float rowHeight = 30;
+  float columnWidth = 700;
+  
+  // Table header
+  fill(30);
+  rect(tableX, tableY, columnWidth, rowHeight * 4);
+  
+  // Row text settings
+  fill(255);
+  textSize(30);
+  textAlign(LEFT, CENTER);
+  stroke(200);
+  strokeWeight(2);
+  
+  // Row 1: Speed
+  fill(50);
+  rect(tableX, tableY, columnWidth, rowHeight);
+  fill(255);
+  text("Speed: ", tableX + 20, tableY + rowHeight / 2);
+  textAlign(RIGHT, CENTER);
+  text(speed + " m/s", tableX +300 , tableY + rowHeight / 2);
+
+  // Row 2: Distance
+  fill(60);
+  rect(tableX, tableY + rowHeight, columnWidth, rowHeight);
+  fill(255);
+  textAlign (LEFT, CENTER);
+  text("Distance: ", tableX + 20, tableY + rowHeight * 1.5);
+  textAlign(RIGHT, CENTER);
+  text(distance + " m", tableX + 300, tableY + rowHeight * 1.5);
+
+  // Row 3: Placeholder for another value
+  fill(50);
+  rect(tableX, tableY + rowHeight * 2, columnWidth, rowHeight);
+  fill(255);
+  textAlign (LEFT, CENTER);
+  text("Row 3 Value: ", tableX + 20, tableY + rowHeight * 2.5);
+   textAlign (RIGHT, CENTER);
+  text("...", tableX + 300, tableY + rowHeight * 2.5);
+
+  // Row 4: Placeholder for another value
+  fill(60);
+  rect(tableX, tableY + rowHeight * 3, columnWidth, rowHeight);
+  fill(255);
+  textAlign (LEFT, CENTER);
+  text("Row 4 Value: ", tableX + 20, tableY + rowHeight * 3.5);
+  textAlign (RIGHT, CENTER);
+  text("...", tableX + 300, tableY + rowHeight * 3.5);
 }
