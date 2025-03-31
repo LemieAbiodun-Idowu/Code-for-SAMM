@@ -11,6 +11,7 @@ WiFiServer server(5200);  //the port number used
 WiFiClient client;
 
 HUSKYLENS huskylens;
+HUSKYLENSResult result;
 //HUSKYLENS green line >> SDA; blue line >> SCL
 
 //For wheel encoders
@@ -106,14 +107,14 @@ void setup() {
   Serial.println(WiFi.localIP());
   server.begin();
   Wire.begin();
-  Wire.setClock(100000);
-  delay(1000);
-  while( !huskylens.begin(Wire) ){
-    Serial.println( F("Huskylens begin failed!") );
-    Serial.println( F("Check Huskylens protocol is set to I2C (General > Settings > Protocol Type > I2C") );
-    Serial.println( F("And confirm the physical connection."));
-    delay(1000);
-  }
+  Wire.setClock(400000);
+  //delay(1000);
+  // while( !huskylens.begin(Wire) ){
+  //   Serial.println( F("Huskylens begin failed!") );
+  //   Serial.println( F("Check Huskylens protocol is set to I2C (General > Settings > Protocol Type > I2C") );
+  //   Serial.println( F("And confirm the physical connection."));
+  //   delay(1000);
+  // }
   Serial.println("Huskylens connected succesfully!");
   //Outputs give out info, Inputs receive Info
   pinMode(ENA, OUTPUT);
@@ -149,30 +150,6 @@ void setup() {
 
 void loop() {
   //starting = micros();
-  // First, check that we have the huskylens connected...
-  if (!huskylens.request()) {
-    Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
-    delay(1000);
-  }
-  // then check that it's been trained on something...
-  else if (!huskylens.isLearned()) {
-    Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
-    delay(1000);
-  }
-  // Then check whether there are any blocks visible at this exact moment...
-  else if (!huskylens.available()) {
-    Serial.println(F("No tag appears on the screen!"));
-    delay(1000);
-  }
-  else {
-    // OK, we have some blocks to process. available() will return the number of blocks to work through.
-    // fetch them using read(), one at a time, until there are none left. Each block gets given to
-    // printResult() function to be printed out to the serial port.
-    if (huskylens.available()) {
-      HUSKYLENSResult result = huskylens.read();
-      printResult(result);
-    }
-  }
   client = server.available();
   if (client.connected()){  //used instead of (client) because this checks for an inactive connection
     //Serial.println("Client is still Online");
@@ -215,19 +192,19 @@ void loop() {
   }
 }
 
-void printResult(HUSKYLENSResult result){
+void printResult(HUSKYLENSResult tag){
     if (result.command == COMMAND_RETURN_BLOCK){
       Serial.println("April Tag");
       Serial.print("ID: "); 
-      Serial.println(result.ID);
+      Serial.println(tag.ID);
       Serial.print("X Center: "); 
-      Serial.println(result.xCenter);
+      Serial.println(tag.xCenter);
       Serial.print("Y Center: ");
-      Serial.println(result.yCenter);
+      Serial.println(tag.yCenter);
       Serial.print("Width: "); 
-      Serial.println(result.width);
-      Serial.print("Height: "); 
-      Serial.println(result.height);
+      Serial.println(tag.width);
+      Serial.print("Height: ");       
+      Serial.println(tag.height);
     }
     else Serial.println("Object unknown!");
 }
@@ -294,7 +271,6 @@ void time_monitor_B(){
   previous_time_B = current_time;
   pulseCount_ENC_B++;
 }
-
 
 void Calc_avg_DST() {
   unsigned long total_pulses = pulseCount_ENC_A + pulseCount_ENC_B;
@@ -417,20 +393,46 @@ void resetM1Integral(){
   Mode1.SetMode(AUTOMATIC);
 }
 
-// void resetM2Integral(){
-//   Mode2.SetMode(MANUAL);
-//   Output2 = 60;
-//   Mode2.SetMode(AUTOMATIC);
-// }
-
 void ActivateBuggy(){
   LEYE_current_state = digitalRead(LEYE);
   REYE_current_state = digitalRead(REYE); //re-read the ir sensor state each loop
 
-  // if (!surface) {
-  //   LEYE_current_state = !LEYE_current_state;
-  //   REYE_current_state = !REYE_current_state;
-  // }
+  // First, check that we have the huskylens connected...
+  if (!huskylens.request()) {
+    Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
+    delay(1000);
+  }
+  // then check that it's been trained on something...
+  else if (!huskylens.isLearned()) {
+    Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
+    delay(1000);
+  }
+  // Then check whether there are any blocks visible at this exact moment...
+  else if (!huskylens.available()) {
+    Serial.println(F("No tag appears on the screen!"));
+    delay(1000);
+  }
+  else {
+    // OK, we have some blocks to process. available() will return the number of blocks to work through.
+    // fetch them using read(), one at a time, until there are none left. Each block gets given to
+    // printResult() function to be printed out to the serial port.
+    if (huskylens.available()) {
+      result = huskylens.read();
+      printResult(result);
+    }
+  }
+  if (huskylens.available()){
+    if(result.ID == 1){
+      speed = 150;
+    }
+    else if(result.ID == 2){
+      if(result.width < (close_width) && result.height < (close_height)){
+        speed = speed * 0.95;
+      }
+      else speed = 90;
+      speed = constrain(speed, 90, 255);
+    }
+  }
   int prev_input_turn = Input_Turn;
   Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
 
