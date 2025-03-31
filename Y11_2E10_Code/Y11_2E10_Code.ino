@@ -1,12 +1,17 @@
 #include <NewPing.h>    //used for US Sensor
 #include <WiFiS3.h>     //Library for wifi
 #include <PID_v1.h>
+#include "HUSKYLENS.h"
+
 
 char ssid[] = "Y11 SAMM"; 
 char pass[] = "12345678"; 
 //our arduino is a Wireless Acess Point, it basically acts as its own wifi
 WiFiServer server(5200);  //the port number used
 WiFiClient client;
+
+HUSKYLENS huskylens;
+//HUSKYLENS green line >> SDA; blue line >> SCL
 
 //For wheel encoders
 //volatile ensures the values are the same when accessed outside the isr functions
@@ -45,7 +50,7 @@ PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, REVERSE);
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-int speed = 130;
+int speed = 110;
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
@@ -56,8 +61,6 @@ const double MIOH = 12750/37;
 int followingSpeed;
 float slider_speed = 0;
 
-const bool surface = true; // true = white line false = back line
-
 //Motor A pins
 const int ENA = 5;    //EN = enable pins for the motor
 const int IN1 = 16;
@@ -65,7 +68,7 @@ const int IN2 = 15;
 
 //Motor B pins
 const int ENB = 11;
-const int IN3 = 18;
+const int IN3 = 14;
 const int IN4 = 17;
 
 //Encoder pins, the wheel encoders help determine the distance and speed travelled
@@ -77,35 +80,41 @@ int LEYE_current_state;
 int REYE_current_state;
 
 int mode = 0;
-//unsigned long starting;
-//unsigned long ending;     debugging stuff
+// unsigned long starting;
+// unsigned long ending;     //debugging stuff
 int distance_maxxing = 50;  //maximum distance at which the us sensor detects objects
 int IncrSpeed = speed + Output_Turn;
-//int IncrSpeedL = speed + Output;
+
 
 //NewPing library helps remove unnecessary delays for US Sensor
 NewPing UltraSonic(US_TRIG, US_ECHO, distance_maxxing);
 
 float obst_distance = UltraSonic.ping_cm(); //current distance in cm of obstacle from US Sensor
-//volatile float distance_travelled = 0.0;  //this is distance travelled by buggy
 float avg_time = 0.0;     //this is the time taken between each pulse emitted by the wheels
 float avg_speed = 0.0;  //this is the speed between each pulse emitted by the wheels
 float avg_distance_travelled = 0.0; //the total distance travelle by buggy
 
 void setup() {
   Serial.begin(115200); //115200 is the baud rate, this is the number of times the signal (messages) are sent per second
+  while(!Serial) { delay(1000); }
   //increased from 9600 because some information wasnt being sent quick enough to the arduino
   WiFi.beginAP(ssid, pass);   //used beginAP because its a WAP
+  delay(1000);
   Serial.print("Connecting to WiFi...");
-  while(WiFi.status() != WL_AP_CONNECTED){  //while wifi is not connected
-    Serial.print(".");
-    delay(1500);
-  }
-  Serial.println("Connected!");
-  Serial.print("IP Address:");   
-  Serial.println(WiFi.localIP());  //the IP Address
+  Serial.println("Access Point started.");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
   server.begin();
-
+  Wire.begin();
+  Wire.setClock(100000);
+  delay(1000);
+  while( !huskylens.begin(Wire) ){
+    Serial.println( F("Huskylens begin failed!") );
+    Serial.println( F("Check Huskylens protocol is set to I2C (General > Settings > Protocol Type > I2C") );
+    Serial.println( F("And confirm the physical connection."));
+    delay(1000);
+  }
+  Serial.println("Huskylens connected succesfully!");
   //Outputs give out info, Inputs receive Info
   pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
@@ -125,7 +134,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ENC_A), time_monitor_A, RISING);
   attachInterrupt(digitalPinToInterrupt(ENC_B), time_monitor_B, RISING);
   Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
-  Input1 = speed;
+  Input1 = avg_speed;
   Input2 = UltraSonic.ping_cm();
   Setpoint_Turn = 0;
   Setpoint1 = slider_speed;
@@ -140,6 +149,30 @@ void setup() {
 
 void loop() {
   //starting = micros();
+  // First, check that we have the huskylens connected...
+  if (!huskylens.request()) {
+    Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
+    delay(1000);
+  }
+  // then check that it's been trained on something...
+  else if (!huskylens.isLearned()) {
+    Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
+    delay(1000);
+  }
+  // Then check whether there are any blocks visible at this exact moment...
+  else if (!huskylens.available()) {
+    Serial.println(F("No tag appears on the screen!"));
+    delay(1000);
+  }
+  else {
+    // OK, we have some blocks to process. available() will return the number of blocks to work through.
+    // fetch them using read(), one at a time, until there are none left. Each block gets given to
+    // printResult() function to be printed out to the serial port.
+    if (huskylens.available()) {
+      HUSKYLENSResult result = huskylens.read();
+      printResult(result);
+    }
+  }
   client = server.available();
   if (client.connected()){  //used instead of (client) because this checks for an inactive connection
     //Serial.println("Client is still Online");
@@ -180,6 +213,23 @@ void loop() {
   if(BuggyActive){
     ActivateBuggy();  //this runs the ir sensor and us sensor stuff
   }
+}
+
+void printResult(HUSKYLENSResult result){
+    if (result.command == COMMAND_RETURN_BLOCK){
+      Serial.println("April Tag");
+      Serial.print("ID: "); 
+      Serial.println(result.ID);
+      Serial.print("X Center: "); 
+      Serial.println(result.xCenter);
+      Serial.print("Y Center: ");
+      Serial.println(result.yCenter);
+      Serial.print("Width: "); 
+      Serial.println(result.width);
+      Serial.print("Height: "); 
+      Serial.println(result.height);
+    }
+    else Serial.println("Object unknown!");
 }
 
 //functions for moving help with code redability
