@@ -12,7 +12,7 @@ float obst_distance;
 boolean following_obstacle = false;
 
 void setup() {
-  size(900, 900);
+  size(1700, 900);
   background(50);
   myClient = new Client(this, "192.168.4.1", 5200);  //,atches 5200 from arduino code
   cp5 = new ControlP5(this);
@@ -74,7 +74,7 @@ void setup() {
 void draw() {
   background(50);
   drawButtonBorder(160, 100, 200, 80, color(0, 255, 0), 50); // Border with green color and thickness 5px
-  drawButtonBorder(500, 100, 200, 80, color(255,0,0),50);
+  drawButtonBorder(550, 100, 200, 80, color(255,0,0),50);
   drawButtonBorder(250, 250, 400, 80, color(227, 41, 215),50);
 
   textSize(50);
@@ -124,7 +124,7 @@ drawTable();
         fill(0, 255, 0);  // Green for all clear
     }
     textSize(70);
-    text(warning, 250, 150);
+    text(warning, 250, 750);
     textSize(50);  // Reset text size
   }
   //if (warning.equals("Cleared :D")){
@@ -133,7 +133,7 @@ drawTable();
   //}
   if (following_obstacle){
     fill(255, 255, 255);
-    text("Obstacle at " + obst_distance, 200, 850);
+    text("Obstacle at " + obst_distance, 600, 850);
     //following_obstacle = false;
   }
 
