@@ -59,6 +59,8 @@ bool obstacle_detected = false;
 bool info_sent = false;
 bool BuggyActive = false;
 const double MIOH = 12750/37;
+bool turningLeftatIntersection = false;
+bool turningRightatIntersection = false;
 int followingSpeed;
 float slider_speed = 0;
 
@@ -253,6 +255,32 @@ void stop(){
   //resetM2Integral();
 }
 
+void JunctionTurning(){
+  if(LEYE_current_state && REYE_current_state){
+    if(mode == 2 && obst_distance > 0 && obst_distance < 50){
+      client.print(String(obst_distance, 2) + "\n");
+      Mode2_Movement();
+    }
+    else moveForward();
+  }
+  else if(!LEYE_current_state && REYE_current_state){ //!LEYE_current_state basically means if LEFT IR Sensor is off
+    turnLeft(IncrSpeed);
+    Serial.println(IncrSpeed);
+  }
+  else if(!REYE_current_state && LEYE_current_state){
+    turnRight(IncrSpeed);
+    Serial.println(IncrSpeed);
+  }
+  else if (!LEYE_current_state && !REYE_current_state){
+    if(turningLeftatIntersection){
+      turnLeft(IncrSpeed);
+    }
+    else if(turningRightatIntersection){
+      turnRight(IncrSpeed);
+    }
+  }
+}
+
 //isr functions
 void time_monitor_A(){
   unsigned long current_time = micros();    //TIME FROM INITIALISATION
@@ -432,6 +460,12 @@ void ActivateBuggy(){
       else speed = 90;
       speed = constrain(speed, 90, 255);
     }
+    else if(result.ID == 3){
+      turningLeftatIntersection = true;
+    }
+    else if(result.ID == 4){
+      turningRightatIntersection = true;
+    }
   }
   int prev_input_turn = Input_Turn;
   Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
@@ -461,14 +495,10 @@ void ActivateBuggy(){
   obstacle_detection(obst_distance);
   if (obstacle_detected){
     stop(); //stop if too close
-    if(mode == 1){
-      //resetM1Integral();
-    }
   }  
- //else if (obst_distance >= 15 && obst_distance <= 50){
- //Mode2.compute();
- //adjustSpeed(); }
-
+  else if(turningLeftatIntersection || turningRightatIntersection){
+    JunctionTurning();
+  }
   else if(LEYE_current_state && REYE_current_state){
     if(mode == 2 && obst_distance > 0 && obst_distance < 50){
       client.print(String(obst_distance, 2) + "\n");
