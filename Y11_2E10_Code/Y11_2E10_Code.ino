@@ -12,6 +12,12 @@ WiFiClient client;
 
 HUSKYLENS huskylens;
 HUSKYLENSResult result;
+const int close_height = 168;
+const int close_width = 168;
+const double close_distance = 0.085;
+const double pixel_conversion_into_cm = close_distance / (close_width * close_height);
+double acceleration;
+int ID = 0;
 //HUSKYLENS green line >> SDA; blue line >> SCL
 
 //For wheel encoders
@@ -59,6 +65,7 @@ bool obstacle_detected = false;
 bool info_sent = false;
 bool BuggyActive = false;
 const double MIOH = 12750/37;
+bool BeginTurn = false;
 bool turningLeftatIntersection = false;
 bool turningRightatIntersection = false;
 int followingSpeed;
@@ -257,6 +264,10 @@ void stop(){
 
 void JunctionTurning(){
   if(LEYE_current_state && REYE_current_state){
+    if(BeginTurn){
+      ID = 0;
+      BeginTurn = false;
+    }
     if(mode == 2 && obst_distance > 0 && obst_distance < 50){
       client.print(String(obst_distance, 2) + "\n");
       Mode2_Movement();
@@ -272,11 +283,20 @@ void JunctionTurning(){
     Serial.println(IncrSpeed);
   }
   else if (!LEYE_current_state && !REYE_current_state){
-    if(turningLeftatIntersection){
-      turnLeft(IncrSpeed);
-    }
-    else if(turningRightatIntersection){
-      turnRight(IncrSpeed);
+    if(ID == 3 || ID == 4){
+      if(turningLeftatIntersection){
+        turnLeft(IncrSpeed);
+        BeginTurn = true;
+      }
+      else if(turningRightatIntersection){
+        turnRight(IncrSpeed);
+        BeginTurn = true;
+      }
+    }       
+    else {    
+      moveForward();
+      turningLeftatIntersection = false;
+      turningRightatIntersection = false;
     }
   }
 }
@@ -452,19 +472,25 @@ void ActivateBuggy(){
   if (huskylens.available()){
     if(result.ID == 1){
       speed = 150;
+      ID = 1;
     }
     else if(result.ID == 2){
       if(result.width < (close_width) && result.height < (close_height)){
-        speed = speed * 0.95;
+        int tag_distance = result.width*result.height*pixel_conversion_into_cm;
+        acceleration = ((90/MIOH) - (speed/MIOH)^2)/(2*tag_distance); 
+        speed = speed + (MIOH*acceleration);  //v^2 = u^2 + 2as  area dim = 4.3 x 4.2 (upright) in cm
       }
       else speed = 90;
       speed = constrain(speed, 90, 255);
+      ID = 2;
     }
     else if(result.ID == 3){
       turningLeftatIntersection = true;
+      ID = 3;
     }
     else if(result.ID == 4){
       turningRightatIntersection = true;
+      ID = 4;
     }
   }
   int prev_input_turn = Input_Turn;
@@ -495,7 +521,7 @@ void ActivateBuggy(){
   obstacle_detection(obst_distance);
   if (obstacle_detected){
     stop(); //stop if too close
-  }  
+  }                                   
   else if(turningLeftatIntersection || turningRightatIntersection){
     JunctionTurning();
   }
@@ -514,11 +540,7 @@ void ActivateBuggy(){
     turnRight(IncrSpeed);
     Serial.println(IncrSpeed);
   }
-  else if (!LEYE_current_state && !REYE_current_state){
-    stop();  
-  }
+  else stop();
   //ending = micros();
   //Serial.println("loop " + String(ending - starting));
-  
 }
-
