@@ -55,19 +55,19 @@ PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, REVERSE);
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-int speed = 110;      //PWM value for speed of buggy
+int speed = 120;      //PWM value for speed of buggy
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
 bool obstacle_detected = false;
-bool obst_info_sent = false;
+bool obstcl_info_sent = false;
 bool BuggyActive = false;
 const double MIOH = 12750/37; //conversion between m/s and PWM values
 bool BeginTurn = false; //denotes if a turn has begun at a junction
 bool turningLeftatIntersection = false;
 bool turningRightatIntersection = false;
 int followingSpeed;     //speed at which buggy follows an obstacle
-float slider_speed = 0; //slider used in mode 2
+float slider_speed = 0; //slider used in mode 1
 
 //Motor A pins
 const int ENA = 5;    //EN = enable pins for the motor
@@ -113,9 +113,10 @@ void setup() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
   server.begin();
-  Wire.begin(); 
+  Wire.begin();
+  huskylens.begin(Wire);
   Wire.setClock(400000);  //ensures swift I2C communication
-  Serial.println("Huskylens connected succesfully!");
+  //Serial.println("Huskylens connected succesfully!");
   //Outputs give out info, Inputs receive Info
   pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
@@ -157,10 +158,10 @@ void loop() {
       String RequestFromClient = client.readStringUntil('\n');  // Read client request
       if(RequestFromClient.substring(0, 13) == "Mode lil bro:"){
         mode = RequestFromClient.substring(13).toInt();
-          // if (mode == 1)
-          //   speed = 120; //for overcoming initial inertia
-          if (mode == 2) 
-            followingSpeed = 100; // Default following speed
+        if (mode == 1)
+          speed = 120; //for overcoming initial inertia
+        if (mode == 2) 
+          followingSpeed = 100; // Default following speed
       }
       if (mode == 1){
         if (RequestFromClient.substring(0, 6) == "Speed:"){
@@ -177,30 +178,30 @@ void loop() {
   }
   Calc_avg_DST(); //obtain updated speed and distance value
   if (client.connected()){
-    client.print(String(avg_speed, 2) + "," + String(avg_distance_travelled, 2) + "\n");
+    client.print(String(avg_speed, 2) + "," + String(avg_distance_travelled, 2) + "\n");  //and send them to processing
   }
   if(BuggyActive){
     ActivateBuggy();  //this runs the ir sensor and us sensor stuff
   }
 }
 
-void printResult(HUSKYLENSResult tag){
-    if (result.command == COMMAND_RETURN_BLOCK){  //April tags are read as blocks
-      Serial.println("April Tag");
-      Serial.print("ID: "); 
-      Serial.println(tag.ID);
-      Serial.print("X Center: "); 
-      Serial.println(tag.xCenter);
-      Serial.print("Y Center: ");
-      Serial.println(tag.yCenter);
-      //Width and Height are read in pixels
-      Serial.print("Width: "); 
-      Serial.println(tag.width); 
-      Serial.print("Height: ");       
-      Serial.println(tag.height);
-    }
-    else Serial.println("Object unknown!");
-}
+// void printResult(HUSKYLENSResult tag){
+//     if (result.command == COMMAND_RETURN_BLOCK){  //April tags are read as blocks
+//       // Serial.println("April Tag");
+//       // Serial.print("ID: "); 
+//       // Serial.println(tag.ID);
+//       // Serial.print("X Center: "); 
+//       // Serial.println(tag.xCenter);
+//       // Serial.print("Y Center: ");
+//       // Serial.println(tag.yCenter);
+//       // //Width and Height are read in pixels
+//       // Serial.print("Width: "); 
+//       // Serial.println(tag.width); 
+//       // Serial.print("Height: ");       
+//       //Serial.println(tag.height);
+//     }
+//     else Serial.println("Object unknown!");
+// }
 
 //functions for moving help with code redability
 void moveForward(){
@@ -215,10 +216,10 @@ void moveForward(){
 
 void turnLeft(int speedchange){
   //Serial.println("turning left");
-  analogWrite(ENA, 0);  //one wheel turns off when turning
+  analogWrite(ENA, 0);  //One wheel turns off when turning
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, LOW);
-  analogWrite(ENB, speedchange);
+  analogWrite(ENB, speedchange);  //The other wheel goes at an increased speed
   digitalWrite(IN4, HIGH);
   digitalWrite(IN3, LOW); 
 }
@@ -260,11 +261,11 @@ void JunctionMovement(){
   }
   else if(!LEYE_current_state && REYE_current_state){ //!LEYE_current_state basically means if LEFT IR Sensor is off
     turnLeft(IncrSpeed);
-    Serial.println(IncrSpeed);
+    //Serial.println(IncrSpeed);
   }
   else if(!REYE_current_state && LEYE_current_state){
     turnRight(IncrSpeed);
-    Serial.println(IncrSpeed);
+    //Serial.println(IncrSpeed);
   }
   else if (!LEYE_current_state && !REYE_current_state){
     if(ID == 3 || ID == 4){
@@ -287,7 +288,7 @@ void JunctionMovement(){
 
 //isr functions
 void time_monitor_A(){
-  unsigned long current_time = micros();    //TIME FROM INITIALISATION
+  unsigned long current_time = micros();    //Time from initialisation
   if(previous_time_A > 0){
     Time_ENC_A = current_time - previous_time_A;
   }
@@ -313,7 +314,7 @@ void Calc_avg_DST() {
   // Serial.print("Total pulses: ");
   // Serial.println(total_pulses);
 
-  //you travel once circumference per revolution, the *2 is because of both wheels
+  //You travel once circumference per revolution, the *2 is because of both wheels
   avg_distance_travelled = Circumference*total_pulses/((float)(Pulse_pre_rev * 2));
   
   // Calculate time in seconds
@@ -331,7 +332,7 @@ void obstacle_detection(float distance){
       obstacle_detected = true; //now it knows the message has been sent that the obstacle has been detected
       //Serial.println("Holy Crap I'm about to hit something");
       client.print("About to hit something\n");
-      obstcl_info_sent = true;
+      obstcl_info_sent = true;  //Now that the info about detection has been sent, info about clearage can also be sent
     }
     else if(distance > 15){
       obstacle_detected = false;  //obstacle is now no longer there
@@ -372,10 +373,10 @@ void Slider_PID(){
   Mode1.Compute();
   double slided_speed = Output1;
   slided_speed = constrain(slided_speed, 0, 0.74);
-  Serial.println(slided_speed);
+  //Serial.println(slided_speed);
   speed = slided_speed * MIOH;
   speed = constrain(speed, 0, 255);
-  Serial.println("Target: " + String(slider_speed) + ", Actual: " + String(avg_speed) + ", Output: " + String(slided_speed) + ", Speed: " + String(speed));
+  //Serial.println("Target: " + String(slider_speed) + ", Actual: " + String(avg_speed) + ", Output: " + String(slided_speed) + ", Speed: " + String(speed));
 }
 
 void obstacle_following(){
@@ -427,39 +428,33 @@ void resetM1Integral(){
 void ActivateBuggy(){
   LEYE_current_state = digitalRead(LEYE);
   REYE_current_state = digitalRead(REYE); //re-read the ir sensor state each loop
+  bool validTag = false;
 
   // First, check that we have the huskylens connected...
-  if (!huskylens.request()) {
-    Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
-    //delay(1000);
-  }
+  if (!huskylens.request());
   // then check that it's been trained on something...
-  else if (!huskylens.isLearned()) {
-    Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
-    //delay(1000);
-  }
+  else if (!huskylens.isLearned());
   // Then check whether there are any blocks visible at this exact moment...
-  else if (!huskylens.available()) {
-    Serial.println(F("No tag appears on the screen!"));
-    //delay(1000);
-  }
+  else if (!huskylens.available());
+  // OK, we have some blocks to process. available() will return the number of blocks to work through.
+  // fetch them using read(), one at a time, until there are none left. Each block gets given to
+  // printResult() function to be printed out to the serial port.
   else {
-    // OK, we have some blocks to process. available() will return the number of blocks to work through.
-    // fetch them using read(), one at a time, until there are none left. Each block gets given to
-    // printResult() function to be printed out to the serial port.
-    if (huskylens.available()) {
-      result = huskylens.read();
-      printResult(result);
+    result = huskylens.read();
+    if(result.command == COMMAND_RETURN_BLOCK){
+      validTag = true;
     }
+    else 
+      ID = 0;
   }
-  if (huskylens.available()){
+  if (validTag){
     if(result.ID == 1){ //Set Speed to Max Value
       speed = 150;
       ID = 1;
     }
     else if(result.ID == 2){  //Follow a Speed Limit based on tag position
       if(result.width < (close_width) && result.height < (close_height)){
-        int tag_distance = result.width*result.height*pixel_conversion_into_cm;
+        int tag_distance = result.width*result.height*pixel_conversion_to_cm;
         acceleration = (pow((90/MIOH), 2) - pow((speed/MIOH), 2))/(2*tag_distance); 
         speed = speed + (MIOH*acceleration);  //v^2 = u^2 + 2as  area dim = 4.3 x 4.2 (upright) in cm
       }
@@ -500,6 +495,7 @@ void ActivateBuggy(){
   IncrSpeed = speed + Output_Turn;
   IncrSpeed = constrain(IncrSpeed, 0, 255); //ALlows speeds to remain within a certain boundary
 
+  Serial.println(ID);
   obstacle_detection(obst_distance);
   if (obstacle_detected){
     stop(); //stop if too close
@@ -522,7 +518,7 @@ void ActivateBuggy(){
     turnRight(IncrSpeed);
     Serial.println(IncrSpeed);
   }
-  else stop();
+  else moveForward();
   //ending = micros();
   //Serial.println("loop " + String(ending - starting));
 }
