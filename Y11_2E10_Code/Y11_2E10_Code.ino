@@ -1,8 +1,8 @@
+#include <Math.h>       //for exponent usage
 #include <NewPing.h>    //used for US Sensor
-#include <WiFiS3.h>     //Library for wifi
-#include <PID_v1.h>
-#include "HUSKYLENS.h"
-
+#include <WiFiS3.h>     //library for wifi
+#include <PID_v1.h>     
+#include "HUSKYLENS.h"  //library for camera
 
 char ssid[] = "Y11 SAMM"; 
 char pass[] = "12345678"; 
@@ -10,15 +10,14 @@ char pass[] = "12345678";
 WiFiServer server(5200);  //the port number used
 WiFiClient client;
 
-HUSKYLENS huskylens;
+HUSKYLENS huskylens; //HUSKYLENS green line >> SDA, blue line >> SCL
 HUSKYLENSResult result;
-const int close_height = 168;
-const int close_width = 168;
-const double close_distance = 0.085;
-const double pixel_conversion_into_cm = close_distance / (close_width * close_height);
-double acceleration;
-int ID = 0;
-//HUSKYLENS green line >> SDA; blue line >> SCL
+const int close_height = 168; //value in pixels for a close tag
+const int close_width = 168;  //value in pixels for a close tag (based on camera reading)
+const double close_distance = 0.085;  //value in cm for a close tag (based on distance from camera)
+const double pixel_conversion_to_cm = close_distance / (close_width * close_height);  
+double acceleration;  //used as deceleration as the buggy speed will reduce due to a tag
+int ID = 0; //Tag ID set as null initially
 
 //For wheel encoders
 //volatile ensures the values are the same when accessed outside the isr functions
@@ -35,9 +34,8 @@ const int Pulse_pre_rev = 4;
 //wheel circumference
 const float Circumference = 6.2*pi/100.0; // divided by 100 for metres conversion .0 is used for float division
 
-//PID Implementation for smooth turns - Needs Fine tuning
+//PID Implementation for smooth turns
 double Input_Turn, Setpoint_Turn, Output_Turn;
-//double Kp = 35, Ki =1, Kd = 10;
 double Kp_Turn = 30, Ki_Turn = 0.5, Kd_Turn = 12;
 
 PID MBS(&Input_Turn, &Output_Turn, &Setpoint_Turn, Kp_Turn, Ki_Turn, Kd_Turn, DIRECT);
@@ -57,19 +55,19 @@ PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, REVERSE);
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-int speed = 110;
+int speed = 110;      //PWM value for speed of buggy
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
 bool obstacle_detected = false;
-bool info_sent = false;
+bool obst_info_sent = false;
 bool BuggyActive = false;
-const double MIOH = 12750/37;
-bool BeginTurn = false;
+const double MIOH = 12750/37; //conversion between m/s and PWM values
+bool BeginTurn = false; //denotes if a turn has begun at a junction
 bool turningLeftatIntersection = false;
 bool turningRightatIntersection = false;
-int followingSpeed;
-float slider_speed = 0;
+int followingSpeed;     //speed at which buggy follows an obstacle
+float slider_speed = 0; //slider used in mode 2
 
 //Motor A pins
 const int ENA = 5;    //EN = enable pins for the motor
@@ -82,14 +80,14 @@ const int IN3 = 14;
 const int IN4 = 17;
 
 //Encoder pins, the wheel encoders help determine the distance and speed travelled
-//encoder pins have to be 2 and 3 because fucking arduino.
+//Encoder pins have to be 2 and 3.
 const int ENC_A = 2;
 const int ENC_B = 3;
 
 int LEYE_current_state;
 int REYE_current_state;
 
-int mode = 0;
+int mode = 0; //initialise to no active mode
 // unsigned long starting;
 // unsigned long ending;     //debugging stuff
 int distance_maxxing = 50;  //maximum distance at which the us sensor detects objects
@@ -109,21 +107,14 @@ void setup() {
   while(!Serial) { delay(1000); }
   //increased from 9600 because some information wasnt being sent quick enough to the arduino
   WiFi.beginAP(ssid, pass);   //used beginAP because its a WAP
-  delay(1000);
+  delay(1000);  //Delay to ensure info is printed
   Serial.print("Connecting to WiFi...");
   Serial.println("Access Point started.");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
   server.begin();
-  Wire.begin();
-  Wire.setClock(400000);
-  //delay(1000);
-  // while( !huskylens.begin(Wire) ){
-  //   Serial.println( F("Huskylens begin failed!") );
-  //   Serial.println( F("Check Huskylens protocol is set to I2C (General > Settings > Protocol Type > I2C") );
-  //   Serial.println( F("And confirm the physical connection."));
-  //   delay(1000);
-  // }
+  Wire.begin(); 
+  Wire.setClock(400000);  //ensures swift I2C communication
   Serial.println("Huskylens connected succesfully!");
   //Outputs give out info, Inputs receive Info
   pinMode(ENA, OUTPUT);
@@ -139,16 +130,17 @@ void setup() {
   //Without INPUT_PULLUP → The encoder pin can randomly switch between HIGH and LOW, causing glitches.
   pinMode(ENC_A, INPUT_PULLUP);
   pinMode(ENC_B, INPUT_PULLUP);
-  //interrupts pause the main program and then run this function, which is time_monitor
+  //Interrupts pause the main program and then run this function, which is time_monitor
   //RISING means the function is run when the encoder pins (which are interrupted) go from LOW to HIGH
   attachInterrupt(digitalPinToInterrupt(ENC_A), time_monitor_A, RISING);
   attachInterrupt(digitalPinToInterrupt(ENC_B), time_monitor_B, RISING);
   Input_Turn = -abs(LEYE_current_state - REYE_current_state);  //re-update the Input for every loop because the IR sensor values change
   Input1 = avg_speed;
   Input2 = UltraSonic.ping_cm();
-  Setpoint_Turn = 0;
-  Setpoint1 = slider_speed;
-  Setpoint2 = 15;
+  //Setpoint represents the desired state  
+  Setpoint_Turn = 0;  //desired state is 0 error
+  Setpoint1 = slider_speed; //desired state is slider value for speed
+  Setpoint2 = 15; //desired state is 15cm from object
   MBS.SetMode(AUTOMATIC);
   Mode1.SetMode(AUTOMATIC);
   Mode2.SetMode(AUTOMATIC);
@@ -161,38 +153,29 @@ void loop() {
   //starting = micros();
   client = server.available();
   if (client.connected()){  //used instead of (client) because this checks for an inactive connection
-    //Serial.println("Client is still Online");
     if(client.available()) {  //if there is data to be read
       String RequestFromClient = client.readStringUntil('\n');  // Read client request
       if(RequestFromClient.substring(0, 13) == "Mode lil bro:"){
-        //int previousMode = mode;
         mode = RequestFromClient.substring(13).toInt();
-          // if(previousMode != mode) {
-          //   resetTurnIntegral();
-          //   resetM1Integral();
-          //   resetM2Integral();
-          // }
-          if (mode == 1)
-            speed = 120; //for overcoming initial inertia
-          else if (mode == 2) 
-          followingSpeed = 100; // Default following speed
+          // if (mode == 1)
+          //   speed = 120; //for overcoming initial inertia
+          if (mode == 2) 
+            followingSpeed = 100; // Default following speed
       }
       if (mode == 1){
         if (RequestFromClient.substring(0, 6) == "Speed:"){
           slider_speed = RequestFromClient.substring(6).toFloat();
-        //Serial.println(RequestFromClient);
         }
       }
       if (RequestFromClient == "Proceed lil bro")
         Proceed();
-      else if (RequestFromClient == "Halt lil bro") 
+      else if (RequestFromClient == "Halt lil bro")
         Halt();
       else if (RequestFromClient == "Update lil bro"){  //this is mainly used to just ensure new speed and distance values are sent
       }
-      }
     }
- //   Serial.println("AVG Speed: " + String(avg_speed) + "," + "AVG Distance: " + String(avg_distance_travelled) + "\n");
-  Calc_avg_DST();
+  }
+  Calc_avg_DST(); //obtain updated speed and distance value
   if (client.connected()){
     client.print(String(avg_speed, 2) + "," + String(avg_distance_travelled, 2) + "\n");
   }
@@ -202,7 +185,7 @@ void loop() {
 }
 
 void printResult(HUSKYLENSResult tag){
-    if (result.command == COMMAND_RETURN_BLOCK){
+    if (result.command == COMMAND_RETURN_BLOCK){  //April tags are read as blocks
       Serial.println("April Tag");
       Serial.print("ID: "); 
       Serial.println(tag.ID);
@@ -210,8 +193,9 @@ void printResult(HUSKYLENSResult tag){
       Serial.println(tag.xCenter);
       Serial.print("Y Center: ");
       Serial.println(tag.yCenter);
+      //Width and Height are read in pixels
       Serial.print("Width: "); 
-      Serial.println(tag.width);
+      Serial.println(tag.width); 
       Serial.print("Height: ");       
       Serial.println(tag.height);
     }
@@ -257,12 +241,12 @@ void stop(){
   analogWrite(ENB, 0);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, LOW);
+  //Prevent Integral Accumulation Error in PID's
   resetTurnIntegral();
   resetM1Integral();
-  //resetM2Integral();
 }
 
-void JunctionTurning(){
+void JunctionMovement(){
   if(LEYE_current_state && REYE_current_state){
     if(BeginTurn){
       ID = 0;
@@ -338,9 +322,7 @@ void Calc_avg_DST() {
     avg_speed = Circumference/(Pulse_pre_rev * avg_time); //remember this is the speed for each pulse
   } else {
     avg_speed = 0;  //if time between pulses is just say speed is 0 at that point
-  }
-        
-  
+  } 
 }
 
 void obstacle_detection(float distance){
@@ -349,17 +331,17 @@ void obstacle_detection(float distance){
       obstacle_detected = true; //now it knows the message has been sent that the obstacle has been detected
       //Serial.println("Holy Crap I'm about to hit something");
       client.print("About to hit something\n");
-      info_sent = true;
+      obstcl_info_sent = true;
     }
     else if(distance > 15){
       obstacle_detected = false;  //obstacle is now no longer there
-      if (info_sent)
+      if (obstcl_info_sent)
         client.print("obstacle_cleared\n"); //client.print sends stuff to the client, which is processing
     }
   }
   else {
     obstacle_detected = false;
-    if (info_sent)
+    if (obstcl_info_sent)
       client.print("obstacle_cleared\n");
   }
 }
@@ -372,7 +354,7 @@ void Halt(){
   stop(); 
   BuggyActive = false;  //now knows that the buggy shouldnt be moved at all
   avg_speed = 0;  //speed and time between pulses are reset to 0 when halted
-  Time_ENC_A = 0;
+  Time_ENC_A = 0; 
   Time_ENC_B = 0;
 }
 
@@ -382,7 +364,7 @@ void Slider_PID(){
   // if(abs(prev_Input1 - Input1) > 0.05){
   //   resetM1Integral();
   // }
-  if(slider_speed > 0 && avg_speed < 0.05) {
+  if(slider_speed > 0 && avg_speed < 0.02) {
     //resetM1Integral();
     speed = 120; // Initial speed to overcome inertia
   }
@@ -430,7 +412,8 @@ void Mode2_Movement(){
 }
 
 void resetTurnIntegral() {
-  MBS.SetMode(MANUAL);
+  //Prevents Output Buildup after buggy has been stopped.
+  MBS.SetMode(MANUAL);  
   Output_Turn = 0;
   MBS.SetMode(AUTOMATIC);
 }
@@ -448,17 +431,17 @@ void ActivateBuggy(){
   // First, check that we have the huskylens connected...
   if (!huskylens.request()) {
     Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
-    delay(1000);
+    //delay(1000);
   }
   // then check that it's been trained on something...
   else if (!huskylens.isLearned()) {
     Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
-    delay(1000);
+    //delay(1000);
   }
   // Then check whether there are any blocks visible at this exact moment...
   else if (!huskylens.available()) {
     Serial.println(F("No tag appears on the screen!"));
-    delay(1000);
+    //delay(1000);
   }
   else {
     // OK, we have some blocks to process. available() will return the number of blocks to work through.
@@ -470,25 +453,25 @@ void ActivateBuggy(){
     }
   }
   if (huskylens.available()){
-    if(result.ID == 1){
+    if(result.ID == 1){ //Set Speed to Max Value
       speed = 150;
       ID = 1;
     }
-    else if(result.ID == 2){
+    else if(result.ID == 2){  //Follow a Speed Limit based on tag position
       if(result.width < (close_width) && result.height < (close_height)){
         int tag_distance = result.width*result.height*pixel_conversion_into_cm;
-        acceleration = ((90/MIOH) - (speed/MIOH)^2)/(2*tag_distance); 
+        acceleration = (pow((90/MIOH), 2) - pow((speed/MIOH), 2))/(2*tag_distance); 
         speed = speed + (MIOH*acceleration);  //v^2 = u^2 + 2as  area dim = 4.3 x 4.2 (upright) in cm
       }
       else speed = 90;
       speed = constrain(speed, 90, 255);
       ID = 2;
     }
-    else if(result.ID == 3){
+    else if(result.ID == 3){  //turn left at the NEXT intersection only 
       turningLeftatIntersection = true;
       ID = 3;
     }
-    else if(result.ID == 4){
+    else if(result.ID == 4){  //turn right at the NEXT intersection only
       turningRightatIntersection = true;
       ID = 4;
     }
@@ -516,14 +499,13 @@ void ActivateBuggy(){
 
   IncrSpeed = speed + Output_Turn;
   IncrSpeed = constrain(IncrSpeed, 0, 255); //ALlows speeds to remain within a certain boundary
-  //IncrSpeedR = constrain(IncrSpeedR, 0, 255); //ALlows speeds to remain within a certain boundary
 
   obstacle_detection(obst_distance);
   if (obstacle_detected){
     stop(); //stop if too close
   }                                   
   else if(turningLeftatIntersection || turningRightatIntersection){
-    JunctionTurning();
+    JunctionMovement();
   }
   else if(LEYE_current_state && REYE_current_state){
     if(mode == 2 && obst_distance > 0 && obst_distance < 50){
