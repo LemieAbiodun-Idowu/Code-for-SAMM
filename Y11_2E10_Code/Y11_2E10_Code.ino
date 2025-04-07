@@ -89,8 +89,8 @@ int LEYE_current_state;
 int REYE_current_state;
 
 int mode = 0; //initialise to no active mode
-// unsigned long starting;
-// unsigned long ending;     //debugging stuff
+unsigned long starting;
+unsigned long ending;     //debugging stuff
 int distance_maxxing = 50;  //maximum distance at which the us sensor detects objects
 int IncrSpeed = speed + Output_Turn;
 
@@ -152,7 +152,7 @@ void setup() {
 }
 
 void loop() {
-  //starting = micros();
+  starting = micros();
   client = server.available();
   if (client.connected()){  //used instead of (client) because this checks for an inactive connection
     if(client.available()) {  //if there is data to be read
@@ -184,6 +184,8 @@ void loop() {
   if(BuggyActive){
     ActivateBuggy();  //this runs the ir sensor and us sensor stuff
   }
+  ending = micros();
+  Serial.println("loop " + String(ending - starting));
 }
 
 // void printResult(HUSKYLENSResult tag){
@@ -464,6 +466,7 @@ void ActivateBuggy(){
     if(result.ID == 1){ //Set Speed to Max Value
       speed = 150;
       ID = 1;
+      client.print("Tag 1\n");
     }
     else if(result.ID == 2){  //Follow a Speed Limit based on tag position
       if(result.width < (close_width) && result.height < (close_height)){
@@ -474,14 +477,17 @@ void ActivateBuggy(){
       else speed = 90;
       speed = constrain(speed, 90, 255);
       ID = 2;
+      client.print("Tag 2\n");
     }
     else if(result.ID == 3){  //turn left at the NEXT intersection only 
       turningLeftatIntersection = true;
       ID = 3;
+      client.print("Tag 3\n");
     }
     else if(result.ID == 4){  //turn right at the NEXT intersection only
       turningRightatIntersection = true;
       ID = 4;
+      client.print("Tag 4\n");
     }
   }
   int prev_input_turn = Input_Turn;
@@ -532,6 +538,4 @@ void ActivateBuggy(){
     Serial.println(IncrSpeed);
   }
   else moveForward();
-  //ending = micros();
-  //Serial.println("loop " + String(ending - starting));
 }

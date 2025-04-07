@@ -1,5 +1,6 @@
 import processing.net.*;
 import controlP5.*;
+import org.gicentre.utils.stat.*;
 
 Client myClient;
 String distance = "0";
@@ -10,6 +11,7 @@ long prevUpdate = 0;
 int mode = 0;
 float obst_distance;
 boolean following_obstacle = false;
+String Tag_info = "";
 
 void setup() {
   size(1700, 900);
@@ -75,7 +77,7 @@ void draw() {
   background(50);
   drawButtonBorder(160, 100, 200, 80, color(0, 255, 0), 50); // Border with green color and thickness 5px
   drawButtonBorder(550, 100, 200, 80, color(255,0,0),50);
-  drawButtonBorder(250, 250, 400, 80, color(227, 41, 215),50);
+  //drawButtonBorder(250, 250, 400, 80, color(227, 41, 215),50);
 
   textSize(50);
   if (millis() - prevUpdate > 100){    //Making sure values are updated regularly
@@ -93,6 +95,9 @@ void draw() {
       }
       else if(data.equals("obstacle_cleared")){
         warning = "Cleared :D";
+      }
+      else if(data.substring(0, 3).equals("Tag")){
+        Tag_info = data;
       }
       else if(!data.contains(",")){
         obst_distance = float(data);
@@ -124,7 +129,7 @@ drawTable();
         fill(0, 255, 0);  // Green for all clear
     }
     textSize(70);
-    text(warning, 250, 750);
+    text(warning, 350, 750);
     textSize(50);  // Reset text size
   }
   //if (warning.equals("Cleared :D")){
@@ -187,13 +192,12 @@ void drawTable() {
   // Table header
   fill(30);
   rect(tableX, tableY, columnWidth, rowHeight * 4);
+  noStroke();
   
   // Row text settings
   fill(255);
   textSize(30);
   textAlign(LEFT, CENTER);
-  stroke(200);
-  strokeWeight(2);
   
   // Row 1: Speed
   fill(50);
@@ -217,16 +221,37 @@ void drawTable() {
   rect(tableX, tableY + rowHeight * 2, columnWidth, rowHeight);
   fill(255);
   textAlign (LEFT, CENTER);
-  text("Row 3 Value: ", tableX + 20, tableY + rowHeight * 2.5);
-   textAlign (RIGHT, CENTER);
-  text("...", tableX + 300, tableY + rowHeight * 2.5);
-
+  text("Latest Tag Read", tableX + 20, tableY + rowHeight * 2.5);
+  textAlign (RIGHT, CENTER);
+  if(Tag_info.isEmpty() || Tag_info.length() < 3 || !Tag_info.substring(0, 3).equals("Tag")){ 
+  text("...", tableX + 500, tableY + rowHeight * 2.5);
+  }
+  else text(Tag_info, tableX + 500, tableY + rowHeight * 2.5);
   // Row 4: Placeholder for another value
   fill(60);
   rect(tableX, tableY + rowHeight * 3, columnWidth, rowHeight);
   fill(255);
   textAlign (LEFT, CENTER);
-  text("Row 4 Value: ", tableX + 20, tableY + rowHeight * 3.5);
+  text("Tag Info: ", tableX + 20, tableY + rowHeight * 3.5);
   textAlign (RIGHT, CENTER);
-  text("...", tableX + 300, tableY + rowHeight * 3.5);
+  switch(Tag_info){
+    case "Tag 1":
+      text("michal smells poopy \u1F602 \u1FAF5", tableX + 300, tableY + rowHeight * 3.5);
+      break;
+    
+    case "Tag 2":
+      text("Holy shit michal farted ", tableX + 300, tableY + rowHeight * 3.5);
+      break;
+    
+    case "Tag 3":
+      text("stinky boi lemickey", tableX + 300, tableY + rowHeight * 3.5);
+      break;
+    
+    case "Tag 4":
+      text("bro has diarrhea lmao", tableX + 300, tableY + rowHeight * 3.5);
+      break;
+    
+    default:
+      text("...", tableX + 300, tableY + rowHeight * 3.5);
+  }
 }
