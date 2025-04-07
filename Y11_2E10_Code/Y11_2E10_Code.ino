@@ -63,7 +63,8 @@ bool obstacle_detected = false;
 bool obstcl_info_sent = false;
 bool BuggyActive = false;
 const double MIOH = 12750/37; //conversion between m/s and PWM values
-bool BeginTurn = false; //denotes if a turn has begun at a junction
+bool BeginJuncTurn = false; //denotes if a turn has begun at a junction
+bool BeginRemerge = false;
 bool turningLeftatIntersection = false;
 bool turningRightatIntersection = false;
 int followingSpeed;     //speed at which buggy follows an obstacle
@@ -249,9 +250,14 @@ void stop(){
 
 void JunctionMovement(){
   if(LEYE_current_state && REYE_current_state){
-    if(BeginTurn){
+    if(BeginJuncTurn){
       ID = 0;
-      BeginTurn = false;
+      BeginJuncTurn = false;
+    }
+    if(BeginRemerge){
+      turningLeftatIntersection = false;
+      turningRightatIntersection = false;
+      BeginRemerge = false;
     }
     if(mode == 2 && obst_distance > 0 && obst_distance < 50){
       client.print(String(obst_distance, 2) + "\n");
@@ -271,19 +277,27 @@ void JunctionMovement(){
     if(ID == 3 || ID == 4){
       if(turningLeftatIntersection){
         turnLeft(IncrSpeed);
-        BeginTurn = true;
+        BeginJuncTurn = true;
       }
       else if(turningRightatIntersection){
         turnRight(IncrSpeed);
-        BeginTurn = true;
+        BeginJuncTurn = true;
       }
     }       
     else {    
-      moveForward();
-      turningLeftatIntersection = false;
-      turningRightatIntersection = false;
+      reMerge();
+      BeginRemerge = true;
     }
   }
+}
+
+void reMerge(){
+  analogWrite(ENA, 100);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN1, HIGH);
+  analogWrite(ENB, 100);
+  digitalWrite(IN4, HIGH);
+  digitalWrite(IN3, LOW);
 }
 
 //isr functions
@@ -444,8 +458,7 @@ void ActivateBuggy(){
     if(result.command == COMMAND_RETURN_BLOCK){
       validTag = true;
     }
-    else 
-      ID = 0;
+    else ID = 0;
   }
   if (validTag){
     if(result.ID == 1){ //Set Speed to Max Value
