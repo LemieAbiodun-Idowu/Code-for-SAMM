@@ -1,46 +1,47 @@
 import processing.net.*;
-import controlP5.*;
-import org.gicentre.utils.stat.*;
+import controlP5.*;    //for GUI
+import org.gicentre.utils.stat.*;  //for vel/time graph
 
-Client myClient;
-String distance = "0";
-String speed = "0";
-String warning = "";
+Client myClient;  //using processing as the client in this case
 ControlP5 cp5;
+//initialise global variables
+String distance = "0";  
+String speed = "0";
+float speedVal = 0;
+String warning = "";
 long prevUpdate = 0;
 int mode = 0;
-float obst_distance;
+float obst_distance = 0;
 boolean following_obstacle = false;
 String Tag_info = "";
 
 void setup() {
-  size(1700, 900);
+  size(1700, 900);  //gives a big area for GUI
   background(50);
-  myClient = new Client(this, "192.168.4.1", 5200);  //,atches 5200 from arduino code
+  myClient = new Client(this, "192.168.4.1", 5200);  //matches 5200 from arduino code
   cp5 = new ControlP5(this);
   PFont buttonFont = createFont("Arial Bold", 38);  // Create a font with size 38
 
-  cp5.addButton("Current mode")  //go button
-     .setLabel("No Active Mode")
-     //.getCaptionLabel().setSize(420)
+  cp5.addButton("Current mode")  //Mode button
+     .setLabel("No Active Mode")  //default mode
      .setPosition(250, 250)
      .setSize(400, 80)
      .setColorBackground(color(227, 41, 215))
-     .setColorActive(color(240, 104, 231))  
-     .setFont(buttonFont)  // Set the button label font
-     .onClick(new CallbackListener() {  //use event handlers for when buttons are pressed
+     .setColorActive(color(240, 104, 231))  //Slight difference between active and default colour for standing out
+     .setFont(buttonFont)  // Setting the button label font
+     .onClick(new CallbackListener() {  //Use event handlers for when buttons are pressed
        public void controlEvent(CallbackEvent theEvent) {
          ModebuttonClicked();
        }
      });
      
-  // add a vertical slider
+  // add a horizontal slider
   cp5.addSlider("BuggySpeed in m/s")
      .setPosition(250, 400)
-     .setSize(400, 75)
+     .setSize(400, 75)  //x Size is bigger than y size, hence horizontal
      .setRange(0, 0.74)
-     .setValue(0)
-     .onChange(new CallbackListener(){
+     .setValue(0)  //start at 0
+     .onChange(new CallbackListener(){  //Use event handlers for when slider is changed
        public void controlEvent(CallbackEvent theEvent){
          SliderValueChanged(theEvent.getController().getValue());
        }
@@ -48,13 +49,13 @@ void setup() {
   
   cp5.addButton("GOButton")  //go button
      .setLabel("GO")
-     //.getCaptionLabel().setSize(420)
      .setPosition(150,100)
      .setSize(200, 80)
      .setColorBackground(color(0, 255, 0))  // Set color to green
-     .setColorActive(color(200, 255, 200))  
-     .setFont(buttonFont)  // Set the button label font
-     .onClick(new CallbackListener() {  //use event handlers for when buttons are pressed
+     .setColorForeground(color(0, 255, 0))
+     .setColorActive(color(0, 255, 0))  
+     .setFont(buttonFont)  //Set the button label font
+     .onClick(new CallbackListener() {
        public void controlEvent(CallbackEvent theEvent) {
          GObuttonClicked();
        }
@@ -64,7 +65,8 @@ void setup() {
      .setPosition(550, 100)
      .setSize(200, 80)
      .setColorBackground(color(255, 0, 0))  //Set color to red
-     .setColorActive(color(255, 255, 255)) 
+     .setColorActive(color(255, 0, 0)) 
+     .setColorForeground(color(255, 0, 0))
      .setFont(buttonFont)
      .onClick(new CallbackListener() {
        public void controlEvent(CallbackEvent theEvent) {
@@ -76,10 +78,9 @@ void setup() {
 void draw() {
   background(50);
   drawButtonBorder(160, 100, 200, 80, color(0, 255, 0), 50); // Border with green color and thickness 5px
-  drawButtonBorder(550, 100, 200, 80, color(255,0,0),50);
-  //drawButtonBorder(250, 250, 400, 80, color(227, 41, 215),50);
+  drawButtonBorder(550, 100, 200, 80, color(255, 0, 0), 50);
 
-  textSize(50);
+  textSize(50);  //Set bigger size for text
   if (millis() - prevUpdate > 100){    //Making sure values are updated regularly
     if(myClient.active()){
       myClient.write("Update lil bro\n");
@@ -88,54 +89,50 @@ void draw() {
   }
   while (myClient.available() > 0) {  //Remember .available means there is data waiting to be read
     String data = myClient.readStringUntil('\n');  // Read incoming data
-     if(data != null){
+    if(data != null){
       data = data.trim();    //Removes unnecessary whitespaces
-      if(data.equals("About to hit something")){
+      if(data.equals("About to hit something")){  //First, check for obstacle detection
         warning = "OBSTACLE!!!";
       }
       else if(data.equals("obstacle_cleared")){
         warning = "Cleared :D";
       }
-      else if(data.substring(0, 3).equals("Tag")){
+      else if(data.substring(0, 3).equals("Tag")){  //Then check for Tag ID
         Tag_info = data;
       }
-      else if(!data.contains(",")){
+      else if(!data.contains(",")){                //Then check if obstacle is being followed
         obst_distance = float(data);
         following_obstacle = true;
       }
-      else{  //if the data sent is not warning about an obstacle it will be sending distance and speed
+      else{  //if the data sent is not above criteria it will be sending distance and speed
         String[] DST =  data.split(",");  // Split speed and distance
         if (DST.length == 2) {
           speed = DST[0];
           distance = DST[1];
         }
       }
+    }
   }
- }
-drawTable();
-  float speedVal = float(speed); 
+  speedVal = float(speed); 
   if (speedVal > 0) {
     fill(0, 255, 0); // Green when moving
   } else {
     fill(255, 0, 0); // Red when stopped
   }
+  drawTable();  //Redraw table after values are updated
  // text("Speed: " + speed + "m/s", 1, 600);
   //fill(255);  //changes colour of the text to white
  // text("Distance: " + distance + "m", 550, 600);
   if (!warning.isEmpty()) {    //if there is a warning
-  if(warning.equals("OBSTACLE!!!")) {
-        fill(255, 0, 0);  // Red for obstacle warning
+    if(warning.equals("OBSTACLE!!!")) {
+      fill(255, 0, 0);  // Red for obstacle warning
     } else if(warning.equals("Cleared :D")) {
         fill(0, 255, 0);  // Green for all clear
     }
-    textSize(70);
-    text(warning, 350, 750);
+    textSize(70);  
+    text(warning, 400, 750);
     textSize(50);  // Reset text size
   }
-  //if (warning.equals("Cleared :D")){
-  // fill(255, 255, 255);
-  // text("Not Following D:", 200, 850);
-  //}
   if (following_obstacle){
     fill(255, 255, 255);
     text("Obstacle at " + obst_distance, 600, 850);
@@ -146,7 +143,7 @@ drawTable();
 
 //Event handlers
 void GObuttonClicked() {
-  myClient.write("Proceed lil bro\n");
+  myClient.write("Proceed lil bro\n");  //Sending info to arduino
 }
 
 void STOPbuttonClicked() {
@@ -154,10 +151,11 @@ void STOPbuttonClicked() {
 }
 
 void SliderValueChanged(float current_speed){
-  myClient.write("Speed:" + Float.toString(current_speed) + "\n");
+  myClient.write("Speed:" + Float.toString(current_speed) + "\n");  //Ensure data is converted correctly
 }
 
 void ModebuttonClicked(){
+  //Change mode whenever button is pressed to next mode
   mode = mode + 1;
   if(mode > 2){
     mode = 0;
@@ -205,7 +203,7 @@ void drawTable() {
   fill(255);
   text("Speed: ", tableX + 20, tableY + rowHeight / 2);
   textAlign(RIGHT, CENTER);
-  text(speed + " m/s", tableX +300 , tableY + rowHeight / 2);
+  text(speedVal + " m/s", tableX + 300 , tableY + rowHeight / 2);
 
   // Row 2: Distance
   fill(60);
@@ -221,12 +219,12 @@ void drawTable() {
   rect(tableX, tableY + rowHeight * 2, columnWidth, rowHeight);
   fill(255);
   textAlign (LEFT, CENTER);
-  text("Latest Tag Read", tableX + 20, tableY + rowHeight * 2.5);
+  text("Latest Tag Read:", tableX + 20, tableY + rowHeight * 2.5);
   textAlign (RIGHT, CENTER);
-  if(Tag_info.isEmpty() || Tag_info.length() < 3 || !Tag_info.substring(0, 3).equals("Tag")){ 
-  text("...", tableX + 500, tableY + rowHeight * 2.5);
+  if(Tag_info.isEmpty() || Tag_info.length() < 3 || !Tag_info.substring(0, 3).equals("Tag")){ //default or invalid tag output
+  text("...", tableX + 300, tableY + rowHeight * 2.5);
   }
-  else text(Tag_info, tableX + 500, tableY + rowHeight * 2.5);
+  else text(Tag_info, tableX + 500, tableY + rowHeight * 2.5);  //valid tag output
   // Row 4: Placeholder for another value
   fill(60);
   rect(tableX, tableY + rowHeight * 3, columnWidth, rowHeight);
@@ -234,23 +232,23 @@ void drawTable() {
   textAlign (LEFT, CENTER);
   text("Tag Info: ", tableX + 20, tableY + rowHeight * 3.5);
   textAlign (RIGHT, CENTER);
-  switch(Tag_info){
+  switch(Tag_info){  //Switch-case for tag output
     case "Tag 1":
-      text("michal smells poopy \u1F602 \u1FAF5", tableX + 300, tableY + rowHeight * 3.5);
+      text("Moving Quicker :0", tableX + 300, tableY + rowHeight * 3.5);
       break;
     
     case "Tag 2":
-      text("Holy shit michal farted ", tableX + 300, tableY + rowHeight * 3.5);
+      text("Following Speed Limt :0", tableX + 300, tableY + rowHeight * 3.5);
       break;
     
     case "Tag 3":
-      text("stinky boi lemickey", tableX + 300, tableY + rowHeight * 3.5);
+      text("Turning Left at Junction :0", tableX + 300, tableY + rowHeight * 3.5);
       break;
     
     case "Tag 4":
-      text("bro has diarrhea lmao", tableX + 300, tableY + rowHeight * 3.5);
+      text("Turning Right at Junction :0", tableX + 300, tableY + rowHeight * 3.5);
       break;
-    
+   
     default:
       text("...", tableX + 300, tableY + rowHeight * 3.5);
   }
