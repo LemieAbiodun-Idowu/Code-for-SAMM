@@ -87,7 +87,7 @@ void draw() {
       prevUpdate = millis();
     }
   }
-  while (myClient.available() > 0) {  //Remember .available means there is data waiting to be read
+  if (myClient.available() > 0) {  //Remember .available means there is data waiting to be read
     String data = myClient.readStringUntil('\n');  // Read incoming data
     if(data != null){
       data = data.trim();    //Removes unnecessary whitespaces
@@ -222,7 +222,7 @@ void drawTable() {
   text("Latest Tag Read:", tableX + 20, tableY + rowHeight * 2.5);
   textAlign (RIGHT, CENTER);
   if(Tag_info.isEmpty() || Tag_info.length() < 3 || !Tag_info.substring(0, 3).equals("Tag")){ //default or invalid tag output
-  text("...", tableX + 300, tableY + rowHeight * 2.5);
+  text("...", tableX + 250, tableY + rowHeight * 2.5);
   }
   else text(Tag_info, tableX + 500, tableY + rowHeight * 2.5);  //valid tag output
   // Row 4: Placeholder for another value
@@ -234,21 +234,21 @@ void drawTable() {
   textAlign (RIGHT, CENTER);
   switch(Tag_info){  //Switch-case for tag output
     case "Tag 1":
-      text("Moving Quicker :0", tableX + 300, tableY + rowHeight * 3.5);
+      text("Moving Quicker :0", tableX + 500, tableY + rowHeight * 3.5);
       break;
     
     case "Tag 2":
-      text("Following Speed Limt :0", tableX + 300, tableY + rowHeight * 3.5);
+      text("Following Speed Limt :0", tableX + 500, tableY + rowHeight * 3.5);
       break;
     
     case "Tag 3":
-      text("Turning Left at Junction :0", tableX + 300, tableY + rowHeight * 3.5);
+      text("Turning Left at Junction :0", tableX + 500, tableY + rowHeight * 3.5);
       break;
     
     case "Tag 4":
-      text("Turning Right at Junction :0", tableX + 300, tableY + rowHeight * 3.5);
+      text("Turning Right at Junction :0", tableX + 500, tableY + rowHeight * 3.5);
       break;
-   
+
     default:
       text("...", tableX + 300, tableY + rowHeight * 3.5);
   }

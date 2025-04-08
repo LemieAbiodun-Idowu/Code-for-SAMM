@@ -13,8 +13,8 @@ WiFiClient client;
 HUSKYLENS huskylens; //HUSKYLENS green line >> SDA, blue line >> SCL
 HUSKYLENSResult result;
 //value in pixels for a close tag (based on camera reading)
-const int close_height = 168; 
-const int close_width = 168;  
+const int close_height = 200; 
+const int close_width = 200;  
 const double close_distance = 0.085;  //value in cm for a close tag (based on distance from camera)
 const double pixel_conversion_to_cm = close_distance / (close_width * close_height);  
 double acceleration;  //used as deceleration as the buggy speed will reduce due to a tag
@@ -56,7 +56,7 @@ PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, REVERSE);
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-int speed = 120;      //PWM value for speed of buggy
+int speed = 130;      //PWM value for speed of buggy
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
@@ -210,12 +210,32 @@ void turnLeft(int speedchange){
   digitalWrite(IN3, LOW); 
 }
 
+void turnLeftatIntersection(int speedchange){
+  //Serial.println("turning left");
+  analogWrite(ENA, 0);  //One wheel turns off when turning
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN1, HIGH);
+  analogWrite(ENB, speedchange + 10);  //The other wheel goes at an increased speed
+  digitalWrite(IN4, HIGH);
+  digitalWrite(IN3, LOW); 
+}
+
 void turnRight(int speedchange){
   //Serial.println("turning right");
   analogWrite(ENB, 0);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
   analogWrite(ENA, speedchange);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN1, HIGH);
+}
+
+void turnRightatIntersection(int speedchange){
+  //Serial.println("turning right");
+  analogWrite(ENB, 0);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENA, speedchange + 10);
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
 }
@@ -264,11 +284,11 @@ void JunctionMovement(){
   else if (!LEYE_current_state && !REYE_current_state){ //If both sensors detect the line, a junction has been reached
     if(ID == 3 || ID == 4){ //check if a turn should occur at this intersection
       if(turningLeftatIntersection){
-        turnLeft(IncrSpeed);
+        turnLeftatIntersection(IncrSpeed);
         BeginJuncTurn = true;
       }
       else if(turningRightatIntersection){
-        turnRight(IncrSpeed);
+        turnRightatIntersection(IncrSpeed);
         BeginJuncTurn = true;
       }
     }
@@ -280,10 +300,10 @@ void JunctionMovement(){
 }
 
 void reMerge(){ //Remerge at slower speeds to ensure bugy stays on the track
-  analogWrite(ENA, 100);
+  analogWrite(ENA, 110);
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
-  analogWrite(ENB, 100);
+  analogWrite(ENB, 110);
   digitalWrite(IN4, HIGH);
   digitalWrite(IN3, LOW);
 }
@@ -407,7 +427,7 @@ void Mode2_Movement(){
   analogWrite(ENB, followingSpeed);
   digitalWrite(IN4, HIGH);
   digitalWrite(IN3, LOW);
-  Serial.println(followingSpeed);
+  //Serial.println(followingSpeed);
 }
 
 void resetTurnIntegral() {
@@ -438,28 +458,12 @@ void ActivateBuggy(){
   //Check for available blocks....
   else {
     result = huskylens.read();
-    if(!huskylens.request());
-    else if (!huskylens.isLearned());
-    else if (!huskylens.available());
-    else{ //if there are multiple blocks to be read
-      HUSKYLENS result2 = huskylens.read();
-      if(!huskylens.request());
-      else if (!huskylens.isLearned());
-      else if (!huskylens.available());
-      else{ //assume a max of 3 blocks at a maximum at once
-        HUSKYLENS result3 = huskylens.read();
-        if (result3.width*result3.height >= result2.width*result2.height)
-          result2 = result3; //only consider the bigger block
-      }
-      if (result2.width*result2.height >= result.width*result.height)
-        result = result2; //only consider the bigger block
-    }
     if(result.command == COMMAND_RETURN_BLOCK){ //If the result read is a tag
       validTag = true;
     }
     else ID = 0;
   }
-  if (validTag){
+  if (validTag || ID == 2){
     if(result.ID == 1){ //Set Speed to Higher Value
       speed = 150;
       ID = 1;
@@ -468,11 +472,11 @@ void ActivateBuggy(){
     else if(result.ID == 2){  //Follow a Speed Limit based on tag position
       if(result.width < (close_width) && result.height < (close_height)){ //Compare current tag position to "close" tag position
         int tag_distance = result.width*result.height*pixel_conversion_to_cm; //Convert to cm
-        acceleration = (pow((90/MIOH), 2) - pow((speed/MIOH), 2))/(2*tag_distance); //calculate acceleration at which buggy will slow down based on tag distance
+        acceleration = (pow((119/MIOH), 2) - pow((speed/MIOH), 2))/(2*tag_distance); //calculate acceleration at which buggy will slow down based on tag distance
         speed = speed + (MIOH*acceleration);  //add this value to the current speed in PWM
       }
-      else speed = 90;  //if tag is read too close, set speed to the limit
-      speed = constrain(speed, 90, 255);
+      else speed = 119;  //if tag is read too close, set speed to the limit
+      speed = constrain(speed, 119, 255);
       ID = 2;
       client.print("Tag 2\n");
     }
@@ -523,11 +527,11 @@ void ActivateBuggy(){
   }
   else if(!LEYE_current_state && REYE_current_state){ //!LEYE_current_state basically means if LEFT IR Sensor is off
     turnLeft(IncrSpeed);
-    Serial.println(IncrSpeed);
+    //Serial.println(IncrSpeed);
   }
   else if(!REYE_current_state && LEYE_current_state){
     turnRight(IncrSpeed);
-    Serial.println(IncrSpeed);
+    //Serial.println(IncrSpeed);
   }
   else moveForward(); //default state is just to move forward to ignore merge lines when NOT turning at intersection
 }
