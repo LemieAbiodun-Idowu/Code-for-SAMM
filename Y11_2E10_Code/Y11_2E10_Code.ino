@@ -475,7 +475,7 @@ void ActivateBuggy(){
         acceleration = (pow((124/MIOH), 2) - pow((speed/MIOH), 2))/(2*tag_distance); //calculate acceleration at which buggy will slow down based on tag distance
         speed = speed + (MIOH*acceleration);  //add this value to the current speed in PWM
       }
-      else speed = 119;  //if tag is read too close, set speed to the limit
+      else speed = 124;  //if tag is read too close, set speed to the limit
       speed = constrain(speed, 124, 255);
       ID = 2;
       client.print("Tag 2\n");
