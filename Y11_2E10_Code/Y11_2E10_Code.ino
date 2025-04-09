@@ -463,10 +463,10 @@ void ActivateBuggy(){
     }
     else ID = 0;
   }
-  if (validTag || ID == 2){
+  if (validTag){
     if(result.ID == 1){ //Set Speed to Higher Value
       speed = 150;
-      ID = 1;
+      // ID = 1;
       client.print("Tag 1\n");
     }
     else if(result.ID == 2){  //Follow a Speed Limit based on tag position
@@ -477,7 +477,7 @@ void ActivateBuggy(){
       }
       else speed = 124;  //if tag is read too close, set speed to the limit
       speed = constrain(speed, 124, 255);
-      ID = 2;
+      //ID = 2;
       client.print("Tag 2\n");
     }
     else if(result.ID == 3){  //turn left at the NEXT intersection only 
