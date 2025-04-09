@@ -43,7 +43,7 @@ PID MBS(&Input_Turn, &Output_Turn, &Setpoint_Turn, Kp_Turn, Ki_Turn, Kd_Turn, DI
 
 //PID Implementation for Mode 1
 double Input1, Setpoint1, Output1;
-double Kp1 = 0.5, Ki1 = 0.4, Kd1 = 0.0;
+double Kp1 = 0.5, Ki1 = 0.6, Kd1 = 0.0;
 
 PID Mode1(&Input1, &Output1, &Setpoint1, Kp1, Ki1, Kd1, DIRECT);
 
@@ -56,7 +56,7 @@ PID Mode2(&Input2, &Output2, &Setpoint2, Kp2, Ki2, Kd2, REVERSE);
 //const values are NEVER changed
 const int LEYE = 4;   //Eye = IR Sensors
 const int REYE = 12;
-int speed = 130;      //PWM value for speed of buggy
+int speed = 140;      //PWM value for speed of buggy
 const int US_TRIG = 9;  //Sends the Ultrasonic Pulse
 const int US_ECHO = 8;  //Receives the Ultrasonic Pulse
 
@@ -69,7 +69,7 @@ bool BeginRemerge = false;  //denotes if buggy has remerged after junction turns
 bool turningLeftatIntersection = false;
 bool turningRightatIntersection = false;
 int followingSpeed;     //speed at which buggy follows an obstacle
-float slider_speed = 0; //slider used in mode 1
+float slider_speed = -1; //slider used in mode 1
 
 //Motor A pins
 const int ENA = 5;    //EN = enable pins for the motor
@@ -90,8 +90,8 @@ int LEYE_current_state;
 int REYE_current_state;
 
 int mode = 0; //initialise to no active mode
-// unsigned long starting;
-// unsigned long ending;     //debugging stuff
+unsigned long starting;
+unsigned long ending;     //debugging stuff
 int distance_maxxing = 50;  //maximum distance at which the us sensor detects objects
 int IncrSpeed = speed + Output_Turn;
 
@@ -205,7 +205,7 @@ void turnLeft(int speedchange){
   analogWrite(ENA, 0);  //One wheel turns off when turning
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
-  analogWrite(ENB, speedchange);  //The other wheel goes at an increased speed
+  analogWrite(ENB, speedchange + 30);  //The other wheel goes at an increased speed
   digitalWrite(IN4, HIGH);
   digitalWrite(IN3, LOW); 
 }
@@ -215,7 +215,7 @@ void turnLeftatIntersection(int speedchange){
   analogWrite(ENA, 0);  //One wheel turns off when turning
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
-  analogWrite(ENB, speedchange + 10);  //The other wheel goes at an increased speed
+  analogWrite(ENB, speedchange + 30);  //The other wheel goes at an increased speed
   digitalWrite(IN4, HIGH);
   digitalWrite(IN3, LOW); 
 }
@@ -225,7 +225,7 @@ void turnRight(int speedchange){
   analogWrite(ENB, 0);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  analogWrite(ENA, speedchange);
+  analogWrite(ENA, speedchange + 30);
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
 }
@@ -235,7 +235,7 @@ void turnRightatIntersection(int speedchange){
   analogWrite(ENB, 0);
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, HIGH);
-  analogWrite(ENA, speedchange + 10);
+  analogWrite(ENA, speedchange + 30);
   digitalWrite(IN2, LOW);
   digitalWrite(IN1, HIGH);
 }
@@ -394,10 +394,10 @@ void Slider_PID(){
   Setpoint1 = slider_speed;
   Mode1.Compute();  //Receive output in m/s
   float slided_speed = Output1;
-  slided_speed = constrain(slided_speed, 0, 0.74); //Ensure value is valid
+  slided_speed = constrain(slided_speed, 0.05, 0.74); //Ensure value is valid
   //Serial.println(slided_speed);
   speed = slided_speed * MIOH;  //multiply by conversion constant to become a PWM value (as an int)
-  speed = constrain(speed, 0, 255);
+  speed = constrain(speed, 60, 255);
   //Serial.println("Target: " + String(slider_speed) + ", Actual: " + String(avg_speed) + ", Output: " + String(slided_speed) + ", Speed: " + String(speed));
 }
 
@@ -472,11 +472,11 @@ void ActivateBuggy(){
     else if(result.ID == 2){  //Follow a Speed Limit based on tag position
       if(result.width < (close_width) && result.height < (close_height)){ //Compare current tag position to "close" tag position
         int tag_distance = result.width*result.height*pixel_conversion_to_cm; //Convert to cm
-        acceleration = (pow((119/MIOH), 2) - pow((speed/MIOH), 2))/(2*tag_distance); //calculate acceleration at which buggy will slow down based on tag distance
+        acceleration = (pow((124/MIOH), 2) - pow((speed/MIOH), 2))/(2*tag_distance); //calculate acceleration at which buggy will slow down based on tag distance
         speed = speed + (MIOH*acceleration);  //add this value to the current speed in PWM
       }
       else speed = 119;  //if tag is read too close, set speed to the limit
-      speed = constrain(speed, 119, 255);
+      speed = constrain(speed, 124, 255);
       ID = 2;
       client.print("Tag 2\n");
     }
