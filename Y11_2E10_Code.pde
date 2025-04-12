@@ -182,59 +182,62 @@ void drawButtonBorder(float x, float y, float w, float h, color borderColor, flo
   rect(x, y, w, h, 20);  // Rounded rectangle with border
 }
 void drawTable() {
-  float tableX = 100;
-  float tableY = 550;
-  float rowHeight = 30;
-  float columnWidth = 700;
+  float tableX = 100; // x-coordinate table starts at 
+  float tableY = 550; //y-coordinate table starts at 
+  float rowHeight = 30; // height of each row 
+  float columnWidth = 700; // width of table 
   
   // Table header
-  fill(30);
-  rect(tableX, tableY, columnWidth, rowHeight * 4);
-  noStroke();
+  fill(30); // dark background 
+  rect(tableX, tableY, columnWidth, rowHeight * 4); // rectangle with a height of 4 rows 
   
   // Row text settings
-  fill(255);
-  textSize(30);
-  textAlign(LEFT, CENTER);
+  fill(255); // white font colour
+  textSize(30); // font size 
+  textAlign(LEFT, CENTER); // font aligned to left
+  stroke(200); // light grey border lines 
+  strokeWeight(2); // border thickness 
   
   // Row 1: Speed
-  fill(50);
-  rect(tableX, tableY, columnWidth, rowHeight);
+  fill(50); 
+  rect(tableX, tableY, columnWidth, rowHeight); // drawing row rectangle 
   fill(255);
-  text("Speed: ", tableX + 20, tableY + rowHeight / 2);
-  textAlign(RIGHT, CENTER);
-  text(speedVal + " m/s", tableX + 300 , tableY + rowHeight / 2);
+  text("Speed: ", tableX + 20, tableY + rowHeight / 2); // row label aligned to left 
+  textAlign(RIGHT, CENTER); // values aligned to the right 
+  text(speed + " m/s", tableX +300 , tableY + rowHeight / 2); // display the speed value 
 
   // Row 2: Distance
-  fill(60);
-  rect(tableX, tableY + rowHeight, columnWidth, rowHeight);
+  fill(60); // slightly different background shade for next row 
+  rect(tableX, tableY + rowHeight, columnWidth, rowHeight); // drawing row rectangle 
   fill(255);
   textAlign (LEFT, CENTER);
-  text("Distance: ", tableX + 20, tableY + rowHeight * 1.5);
+  text("Distance: ", tableX + 20, tableY + rowHeight * 1.5); // row label 
   textAlign(RIGHT, CENTER);
-  text(distance + " m", tableX + 300, tableY + rowHeight * 1.5);
+  text(distance + " m", tableX + 300, tableY + rowHeight * 1.5); // displaying distance value 
 
-  // Row 3: Placeholder for another value
+  // Row 3: Latest tag read
   fill(50);
-  rect(tableX, tableY + rowHeight * 2, columnWidth, rowHeight);
+  rect(tableX, tableY + rowHeight * 2, columnWidth, rowHeight); // drawing ro rectangle 
   fill(255);
   textAlign (LEFT, CENTER);
-  text("Latest Tag Read:", tableX + 20, tableY + rowHeight * 2.5);
+  text("Latest Tag Read:", tableX + 20, tableY + rowHeight * 2.5); // row label aligned to left
   textAlign (RIGHT, CENTER);
-  if(Tag_info.isEmpty() || Tag_info.length() < 3 || !Tag_info.substring(0, 3).equals("Tag")){ //default or invalid tag output
+  if(Tag_info.isEmpty() || Tag_info.length() < 3 || !Tag_info.substring(0, 3).equals("Tag")){ // default or invalid tag output
   text("...", tableX + 250, tableY + rowHeight * 2.5);
   }
-  else text(Tag_info, tableX + 500, tableY + rowHeight * 2.5);  //valid tag output
-  // Row 4: Placeholder for another value
+  else text(Tag_info, tableX + 500, tableY + rowHeight * 2.5);  // valid tag output
+
+
+  // Row 4: Tag information 
   fill(60);
-  rect(tableX, tableY + rowHeight * 3, columnWidth, rowHeight);
+  rect(tableX, tableY + rowHeight * 3, columnWidth, rowHeight); // drawing row rectangle 
   fill(255);
   textAlign (LEFT, CENTER);
-  text("Tag Info: ", tableX + 20, tableY + rowHeight * 3.5);
+  text("Tag Info: ", tableX + 20, tableY + rowHeight * 3.5); // row label aligned to left 
   textAlign (RIGHT, CENTER);
-  switch(Tag_info){  //Switch-case for tag output
+  switch(Tag_info){  // Switch-case for tag output
     case "Tag 1":
-      text("Moving Quicker :0", tableX + 500, tableY + rowHeight * 3.5);
+      text("Moving Quicker :0", tableX + 500, tableY + rowHeight * 3.5); 
       break;
     
     case "Tag 2":
